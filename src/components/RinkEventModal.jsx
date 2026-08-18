@@ -12,6 +12,7 @@ function emptyRinkForm(kind, dateKey) {
     all_day: isTournament,
     time: '',
     end_time: '',
+    title: '',
     notes: '',
   }
 }
@@ -28,6 +29,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
           all_day: !!initialEvent.all_day,
           time: initialEvent.time || '',
           end_time: initialEvent.end_time || '',
+          title: initialEvent.opponent || '',
           notes: initialEvent.notes || '',
         }
       : emptyRinkForm(ENTRY_KIND.TOURNAMENT, defaultDate)
@@ -50,6 +52,10 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
 
     if (isTournament && !form.team) {
       setError('Pick a team for the tournament.')
+      return
+    }
+    if (!isTournament && !form.title.trim()) {
+      setError('Give this on-ice event a title.')
       return
     }
     if (!form.date) {
@@ -90,7 +96,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
       end_time: form.all_day ? null : form.end_time || null,
       event_type: isTournament ? 'Tournament' : 'On-Ice Event',
       location: 'home',
-      opponent: '',
+      opponent: isTournament ? '' : form.title.trim(),
       notes: form.notes,
     }
 
@@ -175,6 +181,20 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
             </div>
           )}
 
+          {!isTournament && (
+            <div className="field">
+              <label htmlFor="rink-title">Title</label>
+              <input
+                id="rink-title"
+                type="text"
+                value={form.title}
+                onChange={update('title')}
+                placeholder="e.g. Zamboni Resurface, Public Skate"
+                required
+              />
+            </div>
+          )}
+
           <div className="field">
             <label>
               <input
@@ -229,6 +249,10 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
                 ? `${initialEvent.date} · All day`
                 : `${initialEvent.date} · ${formatTime12h(initialEvent.time)} – ${formatTime12h(initialEvent.end_time)}`}
             </p>
+          )}
+
+          {!isTournament && !initialEvent && (
+            <p className="modal-hint">The title shows on the calendar chip for this event.</p>
           )}
 
           <div className="modal-actions">

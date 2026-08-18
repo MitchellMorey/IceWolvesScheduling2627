@@ -137,15 +137,15 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
                         ev.chipKind === ENTRY_KIND.TOURNAMENT
                           ? `${ev.team} Tournament${ev.date !== ev.end_date ? ` (${ev.date} to ${ev.end_date})` : ''}${ev.all_day ? ' - All day' : ''}`
                           : ev.all_day
-                          ? 'On-Ice Event - All day'
-                          : `On-Ice Event ${formatTime12h(ev.time)}–${formatTime12h(ev.end_time)}`
+                          ? `${ev.opponent || 'On-Ice Event'} - All day`
+                          : `${ev.opponent || 'On-Ice Event'} ${formatTime12h(ev.time)}–${formatTime12h(ev.end_time)}`
                       }
                     >
                       {ev.chipKind === ENTRY_KIND.TOURNAMENT
                         ? `${ev.team} Tournament`
                         : ev.all_day
-                        ? 'On-Ice · All day'
-                        : `On-Ice ${formatTime12h(ev.time)}–${formatTime12h(ev.end_time)}`}
+                        ? `${ev.opponent || 'On-Ice Event'} · All day`
+                        : `${ev.opponent || 'On-Ice Event'} ${formatTime12h(ev.time)}–${formatTime12h(ev.end_time)}`}
                     </button>
                   ))}
                 </div>
