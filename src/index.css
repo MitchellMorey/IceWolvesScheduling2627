@@ -132,7 +132,7 @@ button {
   gap: 14px;
 }
 
-.month-nav button {
+.month-nav button:not(.today-btn) {
   background: var(--rink-navy);
   color: white;
   border: none;
@@ -143,7 +143,7 @@ button {
   line-height: 1;
 }
 
-.month-nav button:disabled {
+.month-nav button:not(.today-btn):disabled {
   background: var(--ice-line);
   color: var(--ink-soft);
   cursor: not-allowed;
@@ -160,15 +160,19 @@ button {
 }
 
 .today-btn {
+  width: auto;
+  height: auto;
   background: transparent;
   border: 2px solid var(--rink-navy);
   color: var(--rink-navy);
   border-radius: 6px;
-  padding: 8px 18px;
+  padding: 9px 20px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   white-space: nowrap;
+  line-height: 1;
 }
 
 .team-filters {
