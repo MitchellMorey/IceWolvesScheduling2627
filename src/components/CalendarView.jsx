@@ -8,11 +8,18 @@ const WEEKEND_WIDTH = '1.25fr'
 const WEEKDAY_NARROW = '0.8fr'
 const WEEKDAY_EXPANDED = '1.15fr'
 
-export default function CalendarView({ year, month, events, onDayClick, onEventClick, onGroupClick }) {
+export default function CalendarView({ year, month, events, onDayClick, onEventClick, onGroupClick, onRinkEventClick }) {
   const cells = buildMonthGrid(year, month)
   const today = todayKey()
 
+  // Tournaments/on-ice events aren't day-bucketed like everything else -
+  // a tournament can span several days, so they're checked per-cell against
+  // their own date range below instead of via eventsByDay.
+  const tournaments = events.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
+  const onIceEvents = events.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
+
   const eventsByDay = events.reduce((acc, ev) => {
+    if (ev.kind === ENTRY_KIND.TOURNAMENT || ev.kind === ENTRY_KIND.ON_ICE_EVENT) return acc
     if (!acc[ev.date]) acc[ev.date] = []
     acc[ev.date].push(ev)
     return acc
@@ -55,9 +62,33 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
           // the same team and time - once that happens, the allocation
           // marker drops off the calendar since the game chip now covers it.
           const filledKeys = new Set(games.map((ev) => `${ev.team}|${ev.time || ''}`))
-          const openAllocations = dayEntries.filter(
+          let openAllocations = dayEntries.filter(
             (ev) => ev.kind === ENTRY_KIND.ALLOCATION && !filledKeys.has(`${ev.team}|${ev.time || ''}`)
           )
+
+          // Rink events (tournament/on-ice) covering this day supersede the
+          // individual ice-slot holds they overlap with - a tournament hides
+          // that team's holds for the whole date range it covers, and an
+          // on-ice event hides any team's holds inside its time window.
+          const tournamentsForDay = tournaments.filter(
+            (t) => cell.dateKey >= t.date && cell.dateKey <= (t.end_date || t.date)
+          )
+          const onIceForDay = onIceEvents.filter((t) => t.date === cell.dateKey)
+
+          openAllocations = openAllocations.filter((alloc) => {
+            const coveredByTournament = tournamentsForDay.some((t) => t.team === alloc.team)
+            if (coveredByTournament) return false
+            const coveredByOnIce = onIceForDay.some((t) => {
+              if (!t.time || !t.end_time || !alloc.time) return true
+              return alloc.time >= t.time && alloc.time < t.end_time
+            })
+            return !coveredByOnIce
+          })
+
+          const rinkEventChips = [
+            ...tournamentsForDay.map((ev) => ({ ...ev, chipKind: ENTRY_KIND.TOURNAMENT })),
+            ...onIceForDay.map((ev) => ({ ...ev, chipKind: ENTRY_KIND.ON_ICE_EVENT })),
+          ]
 
           // Group same-time allocations (e.g. Squirt + She Wolves sharing a
           // slot) into a single combined chip.
@@ -81,6 +112,28 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
               data-has-events={dayEntries.length > 0}
             >
               <span className="day-number">{cell.day}</span>
+
+              {rinkEventChips.length > 0 && (
+                <div className="day-rink-events">
+                  {rinkEventChips.map((ev) => (
+                    <button
+                      key={ev.id}
+                      className="rink-event-chip"
+                      data-kind={ev.chipKind}
+                      onClick={() => onRinkEventClick(ev)}
+                      title={
+                        ev.chipKind === ENTRY_KIND.TOURNAMENT
+                          ? `${ev.team} Tournament${ev.date !== ev.end_date ? ` (${ev.date} to ${ev.end_date})` : ''}`
+                          : `On-Ice Event ${formatTime12h(ev.time)}–${formatTime12h(ev.end_time)}`
+                      }
+                    >
+                      {ev.chipKind === ENTRY_KIND.TOURNAMENT
+                        ? `${ev.team} Tournament`
+                        : `On-Ice ${formatTime12h(ev.time)}–${formatTime12h(ev.end_time)}`}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {groupsByTime.length > 0 && (
                 <div className="day-allocations">

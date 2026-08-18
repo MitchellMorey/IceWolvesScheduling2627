@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import CalendarView from './components/CalendarView'
 import EventModal from './components/EventModal'
+import RinkEventModal from './components/RinkEventModal'
 import { TEAMS, OPEN_TEAM, ENTRY_KIND } from './constants'
-import { MONTH_NAMES, SEASON_MONTHS, clampToSeason } from './dateUtils'
+import { MONTH_NAMES, SEASON_MONTHS, clampToSeason, formatTime12h } from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
 import sheWolvesLogo from './assets/she-wolves-logo.png'
 
@@ -24,6 +25,7 @@ export default function App() {
   const [loadError, setLoadError] = useState('')
   const [activeTeams, setActiveTeams] = useState(new Set(TEAMS))
   const [modalState, setModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
+  const [rinkModalState, setRinkModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
 
   useEffect(() => {
     loadEvents()
@@ -85,8 +87,68 @@ export default function App() {
     setEvents((prev) => prev.filter((ev) => ev.id !== id))
   }
 
+  // Finds already-scheduled games that would fall inside a proposed
+  // tournament/on-ice-event window, so the save can be blocked instead of
+  // silently burying a real game under a rink event.
+  function findConflicts(form, excludeId) {
+    const endDate = form.end_date || form.date
+    return events.filter((ev) => {
+      if (ev.id === excludeId) return false
+      if (ev.kind !== ENTRY_KIND.GAME) return false
+      if (ev.date < form.date || ev.date > endDate) return false
+
+      if (form.kind === ENTRY_KIND.TOURNAMENT) {
+        if (ev.team !== form.team) return false
+        if (form.all_day) return true
+        // A day strictly between the start/end dates is fully covered.
+        if (ev.date !== form.date && ev.date !== endDate) return true
+        if (ev.date === form.date && form.time && ev.time && ev.time < form.time) return false
+        if (ev.date === endDate && form.end_time && ev.time && ev.time >= form.end_time) return false
+        return true
+      }
+
+      // on_ice_event: rink-wide - any team's game on this date/time conflicts.
+      if (!ev.time) return true
+      if (form.time && ev.time < form.time) return false
+      if (form.end_time && ev.time >= form.end_time) return false
+      return true
+    })
+  }
+
+  async function handleSaveRinkEvent(form, existingId) {
+    const conflicts = findConflicts(form, existingId)
+    if (conflicts.length > 0) {
+      const list = conflicts
+        .map((c) => `${c.team} ${c.date}${c.time ? ` ${formatTime12h(c.time)}` : ''}`)
+        .join(', ')
+      throw new Error(
+        `This overlaps with an already-scheduled game (${list}). Move or remove that game first.`
+      )
+    }
+
+    if (existingId) {
+      const { data, error } = await supabase.from('events').update(form).eq('id', existingId).select()
+      if (error) throw error
+      setEvents((prev) => prev.map((ev) => (ev.id === existingId ? data[0] : ev)))
+    } else {
+      const { data, error } = await supabase.from('events').insert(form).select()
+      if (error) throw error
+      setEvents((prev) => [...prev, data[0]])
+    }
+    setRinkModalState(null)
+  }
+
+  async function handleDeleteRinkEvent(id) {
+    const { error } = await supabase.from('events').delete().eq('id', id)
+    if (error) throw error
+    setEvents((prev) => prev.filter((ev) => ev.id !== id))
+    setRinkModalState(null)
+  }
+
   const visibleEvents = useMemo(
-    () => events.filter((ev) => activeTeams.has(ev.team)),
+    // On-ice events are rink-wide (no team), so team filters don't apply to
+    // them - everything else is filtered by the active team set as before.
+    () => events.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT || activeTeams.has(ev.team)),
     [events, activeTeams]
   )
 
@@ -162,8 +224,8 @@ export default function App() {
           </div>
           <img className="brand-logo" src={sheWolvesLogo} alt="She Wolves logo" />
         </div>
-        <button className="add-btn" onClick={() => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME })}>
-          + Add Schedule Entry
+        <button className="add-btn" onClick={() => setRinkModalState({ mode: 'add' })}>
+          + Add Rink Event
         </button>
       </header>
 
@@ -205,6 +267,7 @@ export default function App() {
           onDayClick={(dateKey) => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME, defaultDate: dateKey })}
           onEventClick={(ev) => setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })}
           onGroupClick={(group) => setModalState({ mode: 'group', group })}
+          onRinkEventClick={(ev) => setRinkModalState({ mode: 'edit', event: ev })}
         />
       )}
 
@@ -258,6 +321,17 @@ export default function App() {
               prefillTime: time,
             })
           }
+        />
+      )}
+
+      {rinkModalState && (
+        <RinkEventModal
+          key={JSON.stringify(rinkModalState)}
+          initialEvent={rinkModalState.event}
+          defaultDate={rinkModalState.defaultDate}
+          onClose={() => setRinkModalState(null)}
+          onSave={handleSaveRinkEvent}
+          onDelete={handleDeleteRinkEvent}
         />
       )}
     </div>

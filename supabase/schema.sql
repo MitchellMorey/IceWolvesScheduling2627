@@ -3,9 +3,15 @@
 
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
-  team text not null,
+  -- Nullable: on-ice events are rink-wide and aren't tied to one team.
+  team text,
   date date not null,
   time time,
+  -- Only used by tournaments/on-ice events, which can cover a date range
+  -- and/or a specific end time.
+  end_date date,
+  end_time time,
+  all_day boolean not null default false,
   event_type text not null default 'Game',
   location text not null default 'home' check (location in ('home', 'away')),
   opponent text,
@@ -13,7 +19,12 @@ create table if not exists events (
   -- 'allocation' = a standing marker for which team owns a recurring time
   -- slot (no game details). 'game' = the actual game/practice filled into
   -- a slot, as a separate row from the allocation that owns it.
-  kind text not null default 'game' check (kind in ('allocation', 'game')),
+  -- 'tournament' = a team + date range rink event that supersedes that
+  -- team's individual ice-slot allocations for the dates it covers.
+  -- 'on_ice_event' = a rink-wide event with a specific start/end time on
+  -- one date, which supersedes any team's allocations in that time range.
+  kind text not null default 'game'
+    check (kind in ('allocation', 'game', 'tournament', 'on_ice_event')),
   created_at timestamptz not null default now()
 );
 
