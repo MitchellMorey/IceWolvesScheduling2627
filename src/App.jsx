@@ -189,9 +189,12 @@ export default function App() {
 
   // ---------- Season stats ----------
   // Allocations are just slot markers, and "Open" entries are unclaimed ice
-  // holds - neither counts as a confirmed game. A tournament isn't a single
-  // game, but it occupies the rink like one - each tournament counts as
-  // three home games for the team it's booked for.
+  // holds - neither counts as a confirmed game. A rink-event Tournament
+  // (kind === 'tournament', spanning a date range) isn't a single game, but
+  // it occupies the rink like one - each one counts as three home games for
+  // the team it's booked for. An individual filled-in game whose type is
+  // "Tournament" (kind === 'game', event_type === 'Tournament') is a single
+  // real game and counts like any other game.
   const TOURNAMENT_GAME_CREDIT = 3
 
   const monthKeyPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
@@ -203,7 +206,7 @@ export default function App() {
       .filter(
         (ev) =>
           ev.kind === ENTRY_KIND.GAME &&
-          ev.event_type === 'Game' &&
+          (ev.event_type === 'Game' || ev.event_type === 'Tournament') &&
           ev.team !== OPEN_TEAM &&
           ev.date >= SEASON_START_KEY &&
           ev.date <= SEASON_END_KEY
@@ -345,9 +348,6 @@ export default function App() {
           ))}
         </tbody>
       </table>
-      <p className="modal-hint" style={{ marginTop: '8px' }}>
-        Each tournament counts as {TOURNAMENT_GAME_CREDIT} home games for that team.
-      </p>
 
       {modalState && (
         <EventModal
