@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { TEAMS, EVENT_TYPES, ENTRY_KIND } from '../constants'
+import { formatTime12h } from '../dateUtils'
 
 const emptyForm = (dateKey, kind, prefillTeam, prefillTime) => ({
   team: prefillTeam || TEAMS[0],
@@ -12,8 +13,105 @@ const emptyForm = (dateKey, kind, prefillTeam, prefillTime) => ({
   kind,
 })
 
+function GroupAllocationRow({ allocation, onReassignRow, onDeleteRow, onFillGame, onRowRemoved }) {
+  const [team, setTeam] = useState(allocation.team)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleReassign = async (e) => {
+    const nextTeam = e.target.value
+    setTeam(nextTeam)
+    setSaving(true)
+    setError('')
+    try {
+      await onReassignRow(allocation.id, nextTeam)
+    } catch (err) {
+      setError(err.message || 'Could not reassign this slot.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Remove this team’s hold on this slot?')) return
+    setSaving(true)
+    try {
+      await onDeleteRow(allocation.id)
+      onRowRemoved(allocation.id)
+    } catch (err) {
+      setError(err.message || 'Could not remove this slot.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="group-row">
+      <select value={team} onChange={handleReassign} disabled={saving}>
+        {TEAMS.map((t) => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="btn-fill-game btn-fill-game-compact"
+        onClick={() => onFillGame({ team, date: allocation.date, time: allocation.time })}
+        disabled={saving}
+      >
+        + Fill In Game
+      </button>
+      <button type="button" className="btn-delete" onClick={handleDelete} disabled={saving}>
+        Delete
+      </button>
+      {error && <div className="modal-error">{error}</div>}
+    </div>
+  )
+}
+
+function GroupAllocationModal({ group, onClose, onReassignRow, onDeleteRow, onFillGame }) {
+  const [rows, setRows] = useState(group)
+  const time = rows[0]?.time
+  const date = rows[0]?.date
+
+  const handleRowRemoved = (id) => {
+    setRows((prev) => prev.filter((r) => r.id !== id))
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Shared Time Slot{time ? ` — ${formatTime12h(time)}` : ''}</h2>
+        <p className="modal-hint">
+          These teams share this ice time. Reassign a team, remove its hold, or fill in a game
+          for whichever team is actually playing - the other team's hold stays as-is.
+        </p>
+
+        {rows.length === 0 && <p>No teams left holding this slot.</p>}
+
+        {rows.map((allocation) => (
+          <GroupAllocationRow
+            key={allocation.id}
+            allocation={allocation}
+            onReassignRow={onReassignRow}
+            onDeleteRow={onDeleteRow}
+            onFillGame={onFillGame}
+            onRowRemoved={handleRowRemoved}
+          />
+        ))}
+
+        <div className="modal-actions">
+          <div />
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button type="button" className="btn-primary" onClick={onClose}>Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function EventModal({
   initialEvent,
+  group,
   defaultDate,
   kind = ENTRY_KIND.GAME,
   prefillTeam,
@@ -21,6 +119,8 @@ export default function EventModal({
   onClose,
   onSave,
   onDelete,
+  onReassignRow,
+  onDeleteRow,
   onFillGame,
 }) {
   const [form, setForm] = useState(
@@ -39,6 +139,18 @@ export default function EventModal({
   )
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  if (group && group.length > 0) {
+    return (
+      <GroupAllocationModal
+        group={group}
+        onClose={onClose}
+        onReassignRow={onReassignRow}
+        onDeleteRow={onDeleteRow}
+        onFillGame={onFillGame}
+      />
+    )
+  }
 
   const isAllocation = form.kind === ENTRY_KIND.ALLOCATION
 

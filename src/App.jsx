@@ -69,6 +69,22 @@ export default function App() {
     setModalState(null)
   }
 
+  // Row-level versions used inside the grouped-allocation modal, where
+  // reassigning or deleting one row shouldn't close the whole modal - the
+  // other team's slot in the group may still need attention.
+  async function handleReassignRow(id, team) {
+    const { data, error } = await supabase.from('events').update({ team }).eq('id', id).select()
+    if (error) throw error
+    setEvents((prev) => prev.map((ev) => (ev.id === id ? data[0] : ev)))
+    return data[0]
+  }
+
+  async function handleDeleteRow(id) {
+    const { error } = await supabase.from('events').delete().eq('id', id)
+    if (error) throw error
+    setEvents((prev) => prev.filter((ev) => ev.id !== id))
+  }
+
   const visibleEvents = useMemo(
     () => events.filter((ev) => activeTeams.has(ev.team)),
     [events, activeTeams]
@@ -188,6 +204,7 @@ export default function App() {
           events={visibleEvents}
           onDayClick={(dateKey) => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME, defaultDate: dateKey })}
           onEventClick={(ev) => setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })}
+          onGroupClick={(group) => setModalState({ mode: 'group', group })}
         />
       )}
 
@@ -222,6 +239,7 @@ export default function App() {
         <EventModal
           key={JSON.stringify(modalState)}
           initialEvent={modalState.event}
+          group={modalState.group}
           defaultDate={modalState.defaultDate}
           kind={modalState.kind}
           prefillTeam={modalState.prefillTeam}
@@ -229,6 +247,8 @@ export default function App() {
           onClose={() => setModalState(null)}
           onSave={handleSave}
           onDelete={handleDelete}
+          onReassignRow={handleReassignRow}
+          onDeleteRow={handleDeleteRow}
           onFillGame={({ team, date, time }) =>
             setModalState({
               mode: 'add',

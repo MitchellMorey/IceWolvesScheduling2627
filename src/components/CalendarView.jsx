@@ -8,7 +8,7 @@ const WEEKEND_WIDTH = '1.25fr'
 const WEEKDAY_NARROW = '0.8fr'
 const WEEKDAY_EXPANDED = '1.15fr'
 
-export default function CalendarView({ year, month, events, onDayClick, onEventClick }) {
+export default function CalendarView({ year, month, events, onDayClick, onEventClick, onGroupClick }) {
   const cells = buildMonthGrid(year, month)
   const today = todayKey()
 
@@ -49,8 +49,28 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
           const dayEntries = (eventsByDay[cell.dateKey] || []).sort((a, b) =>
             (a.time || '').localeCompare(b.time || '')
           )
-          const allocations = dayEntries.filter((ev) => ev.kind === ENTRY_KIND.ALLOCATION)
           const games = dayEntries.filter((ev) => ev.kind !== ENTRY_KIND.ALLOCATION)
+
+          // A game "fills" the allocation that owns its slot when they share
+          // the same team and time - once that happens, the allocation
+          // marker drops off the calendar since the game chip now covers it.
+          const filledKeys = new Set(games.map((ev) => `${ev.team}|${ev.time || ''}`))
+          const openAllocations = dayEntries.filter(
+            (ev) => ev.kind === ENTRY_KIND.ALLOCATION && !filledKeys.has(`${ev.team}|${ev.time || ''}`)
+          )
+
+          // Group same-time allocations (e.g. Squirt + She Wolves sharing a
+          // slot) into a single combined chip.
+          const groupsByTime = []
+          openAllocations.forEach((ev) => {
+            const key = ev.time || ''
+            let group = groupsByTime.find((g) => g.time === key)
+            if (!group) {
+              group = { time: key, allocations: [] }
+              groupsByTime.push(group)
+            }
+            group.allocations.push(ev)
+          })
 
           return (
             <div
@@ -62,19 +82,30 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
             >
               <span className="day-number">{cell.day}</span>
 
-              {allocations.length > 0 && (
+              {groupsByTime.length > 0 && (
                 <div className="day-allocations">
-                  {allocations.map((ev) => (
-                    <button
-                      key={ev.id}
-                      className="allocation-chip"
-                      data-open={ev.team === OPEN_TEAM}
-                      onClick={() => onEventClick(ev)}
-                      title={`${ev.team} slot${ev.time ? ` @ ${formatTime12h(ev.time)}` : ''} - click to fill in a game or reassign`}
-                    >
-                      {ev.time ? formatTime12h(ev.time) : ''} {ev.team}
-                    </button>
-                  ))}
+                  {groupsByTime.map((group) => {
+                    const isSingle = group.allocations.length === 1
+                    const label = group.allocations.map((a) => a.team).join(' / ')
+                    const isOpen = group.allocations.some((a) => a.team === OPEN_TEAM)
+                    return (
+                      <button
+                        key={group.time || 'no-time'}
+                        className="allocation-chip"
+                        data-open={isOpen}
+                        onClick={() =>
+                          isSingle ? onEventClick(group.allocations[0]) : onGroupClick(group.allocations)
+                        }
+                        title={
+                          isSingle
+                            ? `${label} slot${group.time ? ` @ ${formatTime12h(group.time)}` : ''} - click to fill in a game or reassign`
+                            : `${label} share this slot${group.time ? ` @ ${formatTime12h(group.time)}` : ''} - click to fill in a game or reassign either team`
+                        }
+                      >
+                        {group.time ? formatTime12h(group.time) : ''} {label}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
 
