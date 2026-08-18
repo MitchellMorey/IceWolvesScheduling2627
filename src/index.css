@@ -217,6 +217,25 @@ button {
   color: var(--ink-soft);
 }
 
+.modal-copy-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.modal-copy-btn {
+  background: white;
+  color: var(--rink-navy);
+  border: 2px solid var(--ice-line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.modal-copy-btn:hover { border-color: var(--rink-navy); }
+
 /* ---------- Controls ---------- */
 
 .controls {
