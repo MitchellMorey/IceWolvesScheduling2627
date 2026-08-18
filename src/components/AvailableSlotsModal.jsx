@@ -22,12 +22,58 @@ function buildClipboardText(team, slots, travelDates) {
   return lines.join('\n')
 }
 
+// Rich (HTML) version of the same content, so pasting into email/Word/Docs
+// keeps table structure and bold headers - the same as dragging to select
+// and copying by hand would produce, instead of flat plain text.
+function buildClipboardHtml(team, slots, travelDates) {
+  const tableStyle = 'border-collapse:collapse;margin:0 0 16px;font-family:sans-serif;font-size:13px;'
+  const cellStyle = 'border:1px solid #ccc;padding:4px 10px;text-align:left;'
+  const headingStyle = 'font-family:sans-serif;font-size:15px;margin:0 0 6px;'
+
+  const slotRows =
+    slots.length === 0
+      ? `<tr><td style="${cellStyle}">No open slots for ${team} right now - every allocated slot has a game filled in.</td></tr>`
+      : slots
+          .map(
+            (slot) =>
+              `<tr><td style="${cellStyle}">${formatDateLabel(slot.date)}</td><td style="${cellStyle}">${
+                slot.time ? formatTime12h(slot.time) : 'Time TBD'
+              }</td></tr>`
+          )
+          .join('')
+
+  const travelRows =
+    travelDates.length === 0
+      ? `<tr><td style="${cellStyle}">No open weekends for ${team} right now - every Saturday/Sunday has a game or tournament.</td></tr>`
+      : travelDates.map((dateKey) => `<tr><td style="${cellStyle}">${formatDateLabel(dateKey)}</td></tr>`).join('')
+
+  return `
+    <div>
+      <h3 style="${headingStyle}">Available Ice in Dodgeville</h3>
+      <table style="${tableStyle}"><tbody>${slotRows}</tbody></table>
+      <h3 style="${headingStyle}">Available to Travel</h3>
+      <table style="${tableStyle}"><tbody>${travelRows}</tbody></table>
+    </div>
+  `
+}
+
 export default function AvailableSlotsModal({ team, slots, travelDates, onClose }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
+    const text = buildClipboardText(team, slots, travelDates)
     try {
-      await navigator.clipboard.writeText(buildClipboardText(team, slots, travelDates))
+      if (window.ClipboardItem) {
+        const html = buildClipboardHtml(team, slots, travelDates)
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/plain': new Blob([text], { type: 'text/plain' }),
+            'text/html': new Blob([html], { type: 'text/html' }),
+          }),
+        ])
+      } else {
+        await navigator.clipboard.writeText(text)
+      }
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
