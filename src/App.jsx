@@ -3,12 +3,22 @@ import { supabase } from './supabaseClient'
 import CalendarView from './components/CalendarView'
 import EventModal from './components/EventModal'
 import { TEAMS } from './constants'
-import { MONTH_NAMES } from './dateUtils'
+import { MONTH_NAMES, SEASON_MONTHS, clampToSeason } from './dateUtils'
+import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
+import sheWolvesLogo from './assets/she-wolves-logo.png'
+
+const SEASON_START = SEASON_MONTHS[0]
+const SEASON_END = SEASON_MONTHS[SEASON_MONTHS.length - 1]
+
+// Season window used for the stats table: Nov 1, 2026 - Feb 28, 2027 (inclusive).
+const SEASON_START_KEY = '2026-11-01'
+const SEASON_END_KEY = '2027-02-28'
 
 export default function App() {
   const now = new Date()
-  const [year, setYear] = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth())
+  const initial = clampToSeason(now.getFullYear(), now.getMonth())
+  const [year, setYear] = useState(initial.year)
+  const [month, setMonth] = useState(initial.month)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -73,29 +83,62 @@ export default function App() {
     })
   }
 
+  const isAtSeasonStart = year === SEASON_START.year && month === SEASON_START.month
+  const isAtSeasonEnd = year === SEASON_END.year && month === SEASON_END.month
+
   function changeMonth(delta) {
     let m = month + delta
     let y = year
     if (m < 0) { m = 11; y -= 1 }
     if (m > 11) { m = 0; y += 1 }
-    setMonth(m)
-    setYear(y)
+    const clamped = clampToSeason(y, m)
+    setMonth(clamped.month)
+    setYear(clamped.year)
   }
 
   function goToday() {
-    setYear(now.getFullYear())
-    setMonth(now.getMonth())
+    const clamped = clampToSeason(now.getFullYear(), now.getMonth())
+    setYear(clamped.year)
+    setMonth(clamped.month)
   }
+
+  // ---------- Season stats ----------
+  const seasonGames = useMemo(
+    () =>
+      events.filter(
+        (ev) =>
+          ev.event_type === 'Game' && ev.date >= SEASON_START_KEY && ev.date <= SEASON_END_KEY
+      ),
+    [events]
+  )
+
+  const monthKeyPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
+  const monthGames = useMemo(
+    () => seasonGames.filter((ev) => ev.date.startsWith(monthKeyPrefix)),
+    [seasonGames, monthKeyPrefix]
+  )
+
+  const stats = useMemo(() => {
+    const count = (list, loc) => list.filter((ev) => ev.location === loc).length
+    return {
+      totalGamesSeason: seasonGames.length,
+      homeGamesMonth: count(monthGames, 'home'),
+      awayGamesMonth: count(monthGames, 'away'),
+      homeGamesSeason: count(seasonGames, 'home'),
+      awayGamesSeason: count(seasonGames, 'away'),
+    }
+  }, [seasonGames, monthGames])
 
   return (
     <div className="app">
       <header className="app-header">
         <div className="brand">
-          <div className="brand-mark" aria-hidden="true" />
+          <img className="brand-logo" src={iceWolvesLogo} alt="Ice Wolves logo" />
           <div>
-            <h1>Rink Schedule</h1>
-            <p>Games &amp; Practices, All Teams</p>
+            <h1>Ice Wolves Game Schedules, 2026-2027</h1>
+            <p>Games, All Teams</p>
           </div>
+          <img className="brand-logo" src={sheWolvesLogo} alt="She Wolves logo" />
         </div>
         <button className="add-btn" onClick={() => setModalState({ mode: 'add' })}>
           + Add Schedule Entry
@@ -104,9 +147,9 @@ export default function App() {
 
       <div className="controls">
         <div className="month-nav">
-          <button aria-label="Previous month" onClick={() => changeMonth(-1)}>‹</button>
+          <button aria-label="Previous month" onClick={() => changeMonth(-1)} disabled={isAtSeasonStart}>‹</button>
           <span className="scoreboard">{MONTH_NAMES[month]} {year}</span>
-          <button aria-label="Next month" onClick={() => changeMonth(1)}>›</button>
+          <button aria-label="Next month" onClick={() => changeMonth(1)} disabled={isAtSeasonEnd}>›</button>
           <button className="today-btn" onClick={goToday}>Today</button>
         </div>
         <div className="team-filters">
@@ -145,6 +188,28 @@ export default function App() {
         <span><i className="home" /> Home</span>
         <span><i className="away" /> Away</span>
       </div>
+
+      <table className="stats-table">
+        <caption>Season Stats — {MONTH_NAMES[month]} {year}</caption>
+        <thead>
+          <tr>
+            <th>Total Games This Season</th>
+            <th>Home Games This Month</th>
+            <th>Away Games This Month</th>
+            <th>Total Home Games This Season</th>
+            <th>Total Away Games This Season</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{stats.totalGamesSeason}</td>
+            <td>{stats.homeGamesMonth}</td>
+            <td>{stats.awayGamesMonth}</td>
+            <td>{stats.homeGamesSeason}</td>
+            <td>{stats.awayGamesSeason}</td>
+          </tr>
+        </tbody>
+      </table>
 
       {modalState && (
         <EventModal
