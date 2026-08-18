@@ -1,6 +1,6 @@
 import { formatDateLabel, formatTime12h } from '../dateUtils'
 
-export default function AvailableSlotsModal({ team, slots, onClose }) {
+export default function AvailableSlotsModal({ team, slots, travelDates, onClose }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -21,6 +21,24 @@ export default function AvailableSlotsModal({ team, slots, onClose }) {
 
         <p className="modal-hint">
           Ice time already allocated to {team} that doesn't have a game filled in yet.
+        </p>
+
+        <h2>Available to Travel</h2>
+
+        {travelDates.length === 0 ? (
+          <p>No open weekends for {team} right now - every Saturday/Sunday has a game or tournament.</p>
+        ) : (
+          <ul className="slots-list">
+            {travelDates.map((dateKey) => (
+              <li key={dateKey} className="slots-list-item">
+                <span className="slots-list-date">{formatDateLabel(dateKey)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="modal-hint">
+          Saturdays/Sundays with no {team} game or tournament (individual or multi-day) scheduled - open for {team} to travel to an away tournament.
         </p>
 
         <div className="modal-actions">

@@ -5,7 +5,7 @@ import EventModal from './components/EventModal'
 import RinkEventModal from './components/RinkEventModal'
 import AvailableSlotsModal from './components/AvailableSlotsModal'
 import { TEAMS, REAL_TEAMS, OPEN_TEAM, ENTRY_KIND } from './constants'
-import { MONTH_NAMES, SEASON_MONTHS, clampToSeason, formatTime12h } from './dateUtils'
+import { MONTH_NAMES, SEASON_MONTHS, clampToSeason, formatTime12h, toDateKey } from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
 import sheWolvesLogo from './assets/she-wolves-logo.png'
 
@@ -211,6 +211,37 @@ export default function App() {
         return !coveredByOnIce
       })
       .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+  }
+
+  // Every Saturday/Sunday in the season where a team has no game (any
+  // event type) and isn't covered by one of its own tournaments - i.e.
+  // weekend dates that team is free to travel for an away tournament.
+  function getTravelDatesForTeam(team) {
+    const weekendDates = []
+    const cursor = new Date(2026, 10, 1) // Nov 1, 2026
+    const end = new Date(2027, 1, 28) // Feb 28, 2027
+    while (cursor <= end) {
+      const day = cursor.getDay()
+      if (day === 0 || day === 6) {
+        weekendDates.push(toDateKey(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()))
+      }
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    const teamGameDates = new Set(
+      events.filter((ev) => ev.kind === ENTRY_KIND.GAME && ev.team === team).map((ev) => ev.date)
+    )
+    const teamTournaments = events.filter(
+      (ev) => ev.kind === ENTRY_KIND.TOURNAMENT && ev.team === team
+    )
+
+    return weekendDates.filter((dateKey) => {
+      if (teamGameDates.has(dateKey)) return false
+      const coveredByTournament = teamTournaments.some(
+        (t) => dateKey >= t.date && dateKey <= (t.end_date || t.date)
+      )
+      return !coveredByTournament
+    })
   }
 
   const isAtSeasonStart = year === SEASON_START.year && month === SEASON_START.month
@@ -466,6 +497,7 @@ export default function App() {
         <AvailableSlotsModal
           team={slotsTeam}
           slots={getOpenSlotsForTeam(slotsTeam)}
+          travelDates={getTravelDatesForTeam(slotsTeam)}
           onClose={() => setSlotsTeam(null)}
         />
       )}
