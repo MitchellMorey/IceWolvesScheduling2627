@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import CalendarView from './components/CalendarView'
 import EventModal from './components/EventModal'
-import { TEAMS } from './constants'
+import { TEAMS, OPEN_TEAM } from './constants'
 import { MONTH_NAMES, SEASON_MONTHS, clampToSeason } from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
 import sheWolvesLogo from './assets/she-wolves-logo.png'
@@ -103,11 +103,16 @@ export default function App() {
   }
 
   // ---------- Season stats ----------
+  // "Open" entries are unclaimed ice holds, not confirmed games, so they're
+  // excluded from the games count until reassigned to a real team.
   const seasonGames = useMemo(
     () =>
       events.filter(
         (ev) =>
-          ev.event_type === 'Game' && ev.date >= SEASON_START_KEY && ev.date <= SEASON_END_KEY
+          ev.event_type === 'Game' &&
+          ev.team !== OPEN_TEAM &&
+          ev.date >= SEASON_START_KEY &&
+          ev.date <= SEASON_END_KEY
       ),
     [events]
   )
@@ -158,6 +163,7 @@ export default function App() {
               key={team}
               className="team-chip"
               data-active={activeTeams.has(team)}
+              data-open={team === OPEN_TEAM}
               onClick={() => toggleTeam(team)}
             >
               {team}

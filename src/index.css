@@ -13,6 +13,9 @@
   --away-soft: #FBEBDC;
   --center-red: #C8372F;
   --focus: #2F7FE0;
+  --open: #8A6D00;
+  --open-soft: #FBF3D9;
+  --open-line: #D8C270;
 
   /* Type */
   --font-display: 'Archivo Black', sans-serif;
@@ -199,6 +202,19 @@ button {
   color: white;
 }
 
+.team-chip[data-open="true"] {
+  border-style: dashed;
+  border-color: var(--open-line);
+  color: var(--open);
+}
+
+.team-chip[data-open="true"][data-active="true"] {
+  border-style: solid;
+  border-color: var(--open);
+  background: var(--open);
+  color: white;
+}
+
 /* ---------- Calendar grid ---------- */
 
 .weekday-row {
@@ -285,6 +301,13 @@ button {
 .event-chip[data-loc="away"] {
   border-left-color: var(--away);
   background: var(--away-soft);
+}
+
+.event-chip[data-open="true"] {
+  border-left-style: dashed;
+  border-left-color: var(--open-line);
+  background: var(--open-soft);
+  color: var(--open);
 }
 
 .event-chip strong {

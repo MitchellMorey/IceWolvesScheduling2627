@@ -1,4 +1,4 @@
-import { WEEKDAYS } from '../constants'
+import { WEEKDAYS, OPEN_TEAM } from '../constants'
 import { buildMonthGrid, todayKey, formatTime12h } from '../dateUtils'
 
 // Column 0/6 (Sun/Sat) are always wider. Columns 1-5 (Mon-Fri) start
@@ -59,18 +59,22 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
             >
               <span className="day-number">{cell.day}</span>
               <div className="day-events">
-                {dayEvents.map((ev) => (
-                  <button
-                    key={ev.id}
-                    className="event-chip"
-                    data-loc={ev.location}
-                    onClick={() => onEventClick(ev)}
-                    title={`${ev.team} · ${ev.event_type}`}
-                  >
-                    <strong>{ev.time ? formatTime12h(ev.time) : ''} {ev.team}</strong>
-                    {ev.event_type}{ev.opponent ? ` vs ${ev.opponent}` : ''}
-                  </button>
-                ))}
+                {dayEvents.map((ev) => {
+                  const isOpen = ev.team === OPEN_TEAM
+                  return (
+                    <button
+                      key={ev.id}
+                      className="event-chip"
+                      data-loc={ev.location}
+                      data-open={isOpen}
+                      onClick={() => onEventClick(ev)}
+                      title={isOpen ? 'Open ice - not yet assigned' : `${ev.team} · ${ev.event_type}`}
+                    >
+                      <strong>{ev.time ? formatTime12h(ev.time) : ''} {ev.team}</strong>
+                      {isOpen ? 'Open · tap to assign' : `${ev.event_type}${ev.opponent ? ` vs ${ev.opponent}` : ''}`}
+                    </button>
+                  )
+                })}
               </div>
               <button className="day-add" onClick={() => onDayClick(cell.dateKey)}>
                 + Add
