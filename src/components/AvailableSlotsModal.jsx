@@ -5,9 +5,6 @@ export default function AvailableSlotsModal({ team, slots, onClose }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Available Slots — {team}</h2>
-        <p className="modal-hint">
-          Ice time already allocated to {team} that doesn't have a game filled in yet.
-        </p>
 
         {slots.length === 0 ? (
           <p>No open slots for {team} right now - every allocated slot has a game filled in.</p>
@@ -21,6 +18,10 @@ export default function AvailableSlotsModal({ team, slots, onClose }) {
             ))}
           </ul>
         )}
+
+        <p className="modal-hint">
+          Ice time already allocated to {team} that doesn't have a game filled in yet.
+        </p>
 
         <div className="modal-actions">
           <div />
