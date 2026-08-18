@@ -106,3 +106,12 @@ export function formatTime12h(time) {
   const hour12 = h % 12 === 0 ? 12 : h % 12
   return `${hour12}:${String(m).padStart(2, '0')}${period}`
 }
+
+// 'YYYY-MM-DD' -> e.g. "Sat, Nov 7" - parsed as local date parts (not via
+// `new Date(dateKey)`) to avoid UTC/local timezone drift shifting the day.
+export function formatDateLabel(dateKey) {
+  if (!dateKey) return ''
+  const [y, m, d] = dateKey.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}

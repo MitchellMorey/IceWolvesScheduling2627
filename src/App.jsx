@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import CalendarView from './components/CalendarView'
 import EventModal from './components/EventModal'
 import RinkEventModal from './components/RinkEventModal'
+import AvailableSlotsModal from './components/AvailableSlotsModal'
 import { TEAMS, REAL_TEAMS, OPEN_TEAM, ENTRY_KIND } from './constants'
 import { MONTH_NAMES, SEASON_MONTHS, clampToSeason, formatTime12h } from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
@@ -26,6 +27,8 @@ export default function App() {
   const [activeTeams, setActiveTeams] = useState(new Set(TEAMS))
   const [modalState, setModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [rinkModalState, setRinkModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
+  const [slotsDropdownOpen, setSlotsDropdownOpen] = useState(false)
+  const [slotsTeam, setSlotsTeam] = useState(null)
 
   useEffect(() => {
     loadEvents()
@@ -168,6 +171,48 @@ export default function App() {
     })
   }
 
+  // Every ice-slot allocation for a team that doesn't (yet) have a game
+  // filled in - same "filled" and "superseded by a rink event" rules the
+  // calendar itself uses, just run across the whole season instead of one
+  // visible month at a time.
+  function getOpenSlotsForTeam(team) {
+    const teamAllocations = events.filter(
+      (ev) => ev.kind === ENTRY_KIND.ALLOCATION && ev.team === team
+    )
+    const filledKeys = new Set(
+      events
+        .filter((ev) => ev.kind === ENTRY_KIND.GAME)
+        .map((ev) => `${ev.date}|${ev.team}|${ev.time || ''}`)
+    )
+    const tournaments = events.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
+    const onIceEvents = events.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
+
+    return teamAllocations
+      .filter((alloc) => !filledKeys.has(`${alloc.date}|${alloc.team}|${alloc.time || ''}`))
+      .filter((alloc) => {
+        const coveredByTournament = tournaments.some((t) => {
+          const endDate = t.end_date || t.date
+          if (alloc.date < t.date || alloc.date > endDate) return false
+          if (t.all_day) return true
+          if (alloc.date !== t.date && alloc.date !== endDate) return true
+          if (!alloc.time) return true
+          if (alloc.date === t.date && t.time && alloc.time < t.time) return false
+          if (alloc.date === endDate && t.end_time && alloc.time >= t.end_time) return false
+          return true
+        })
+        if (coveredByTournament) return false
+
+        const coveredByOnIce = onIceEvents.some((t) => {
+          if (t.date !== alloc.date) return false
+          if (t.all_day) return true
+          if (!t.time || !t.end_time || !alloc.time) return true
+          return alloc.time >= t.time && alloc.time < t.end_time
+        })
+        return !coveredByOnIce
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+  }
+
   const isAtSeasonStart = year === SEASON_START.year && month === SEASON_START.month
   const isAtSeasonEnd = year === SEASON_END.year && month === SEASON_END.month
 
@@ -268,9 +313,40 @@ export default function App() {
           </div>
           <img className="brand-logo" src={sheWolvesLogo} alt="She Wolves logo" />
         </div>
-        <button className="add-btn" onClick={() => setRinkModalState({ mode: 'add' })}>
-          + Add Rink Event
-        </button>
+        <div className="header-actions">
+          <div className="slots-btn-wrap">
+            <button
+              type="button"
+              className="slots-btn"
+              onClick={() => setSlotsDropdownOpen((open) => !open)}
+            >
+              Available Slots ▾
+            </button>
+            {slotsDropdownOpen && (
+              <>
+                <div className="slots-dropdown-backdrop" onClick={() => setSlotsDropdownOpen(false)} />
+                <div className="slots-dropdown">
+                  {REAL_TEAMS.map((team) => (
+                    <button
+                      key={team}
+                      type="button"
+                      className="slots-dropdown-item"
+                      onClick={() => {
+                        setSlotsTeam(team)
+                        setSlotsDropdownOpen(false)
+                      }}
+                    >
+                      {team}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <button className="add-btn" onClick={() => setRinkModalState({ mode: 'add' })}>
+            + Add Rink Event
+          </button>
+        </div>
       </header>
 
       <div className="controls">
@@ -383,6 +459,14 @@ export default function App() {
           onClose={() => setRinkModalState(null)}
           onSave={handleSaveRinkEvent}
           onDelete={handleDeleteRinkEvent}
+        />
+      )}
+
+      {slotsTeam && (
+        <AvailableSlotsModal
+          team={slotsTeam}
+          slots={getOpenSlotsForTeam(slotsTeam)}
+          onClose={() => setSlotsTeam(null)}
         />
       )}
     </div>
