@@ -67,16 +67,27 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
           )
 
           // Rink events (tournament/on-ice) covering this day supersede the
-          // individual ice-slot holds they overlap with - a tournament hides
-          // that team's holds for the whole date range it covers, and an
-          // on-ice event hides any team's holds inside its time window.
+          // individual ice-slot holds they overlap with, for every team - a
+          // tournament takes over the whole rink for the dates it covers
+          // (not just the tournament's own team's slots), and an on-ice
+          // event takes over the rink for its specific time window.
           const tournamentsForDay = tournaments.filter(
             (t) => cell.dateKey >= t.date && cell.dateKey <= (t.end_date || t.date)
           )
           const onIceForDay = onIceEvents.filter((t) => t.date === cell.dateKey)
 
           openAllocations = openAllocations.filter((alloc) => {
-            const coveredByTournament = tournamentsForDay.some((t) => t.team === alloc.team)
+            const coveredByTournament = tournamentsForDay.some((t) => {
+              if (t.all_day) return true
+              const endDate = t.end_date || t.date
+              // A day strictly between the tournament's start/end dates is
+              // fully covered regardless of the start/end times.
+              if (cell.dateKey !== t.date && cell.dateKey !== endDate) return true
+              if (!alloc.time) return true
+              if (cell.dateKey === t.date && t.time && alloc.time < t.time) return false
+              if (cell.dateKey === endDate && t.end_time && alloc.time >= t.end_time) return false
+              return true
+            })
             if (coveredByTournament) return false
             const coveredByOnIce = onIceForDay.some((t) => {
               if (!t.time || !t.end_time || !alloc.time) return true

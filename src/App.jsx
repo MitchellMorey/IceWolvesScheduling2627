@@ -101,7 +101,9 @@ export default function App() {
       if (ev.date < form.date || ev.date > endDate) return false
 
       if (form.kind === ENTRY_KIND.TOURNAMENT) {
-        if (ev.team !== form.team) return false
+        // A tournament takes over the whole rink for its dates, so any
+        // team's home game in the window conflicts - not just the
+        // tournament's own team.
         if (form.all_day) return true
         // A day strictly between the start/end dates is fully covered.
         if (ev.date !== form.date && ev.date !== endDate) return true
