@@ -320,7 +320,7 @@ export default function App() {
               className="slots-btn"
               onClick={() => setSlotsDropdownOpen((open) => !open)}
             >
-              Available Slots ▾
+              Game Availability ▾
             </button>
             {slotsDropdownOpen && (
               <>

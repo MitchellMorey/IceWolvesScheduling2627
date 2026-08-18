@@ -4,7 +4,7 @@ export default function AvailableSlotsModal({ team, slots, onClose }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Available Slots — {team}</h2>
+        <h2>Available Ice in Dodgeville</h2>
 
         {slots.length === 0 ? (
           <p>No open slots for {team} right now - every allocated slot has a game filled in.</p>
