@@ -95,6 +95,9 @@ export default function App() {
     return events.filter((ev) => {
       if (ev.id === excludeId) return false
       if (ev.kind !== ENTRY_KIND.GAME) return false
+      // Away games don't need home ice, so they never block a rink event -
+      // only home games (which need this rink's ice) can conflict.
+      if (ev.location !== 'home') return false
       if (ev.date < form.date || ev.date > endDate) return false
 
       if (form.kind === ENTRY_KIND.TOURNAMENT) {
