@@ -277,6 +277,33 @@ button {
   color: #B8C4CB;
 }
 
+.day-allocations {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.allocation-chip {
+  border: 1px dashed var(--ice-line);
+  background: var(--ice);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  text-align: left;
+  color: var(--ink-soft);
+  font-family: var(--font-condensed);
+  width: 100%;
+}
+
+.allocation-chip[data-open="true"] {
+  border-color: var(--open-line);
+  background: var(--open-soft);
+  color: var(--open);
+}
+
 .day-events {
   display: flex;
   flex-direction: column;
@@ -357,6 +384,29 @@ button {
   text-transform: uppercase;
   color: var(--rink-navy);
   margin: 0 0 18px;
+}
+
+.modal-hint {
+  background: var(--open-soft);
+  color: var(--open);
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: -6px 0 16px;
+}
+
+.btn-fill-game {
+  width: 100%;
+  background: var(--home-soft);
+  color: var(--home);
+  border: 2px dashed var(--home);
+  border-radius: 7px;
+  padding: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 13px;
+  margin-bottom: 6px;
 }
 
 .field {
@@ -560,8 +610,11 @@ button {
   .calendar-grid { gap: 4px; padding: 4px; border-radius: 10px; }
   .day-cell { min-height: 76px; padding: 5px; border-radius: 6px; }
   .day-events { display: none; }
+  .day-allocations { display: none; }
   .day-cell[data-has-events="true"] .day-events { display: flex; }
+  .day-cell[data-has-events="true"] .day-allocations { display: flex; }
   .event-chip { font-size: 10.5px; }
+  .allocation-chip { font-size: 9.5px; }
   .scoreboard { font-size: 21px; min-width: unset; }
   .weekday-row span { font-size: 10px; }
 }

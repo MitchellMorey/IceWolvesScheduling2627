@@ -10,4 +10,12 @@ export const TEAMS = [...REAL_TEAMS, OPEN_TEAM]
 
 export const EVENT_TYPES = ['Game', 'Practice', 'Tournament', 'Open Skate', 'Other']
 
+// Every schedule entry is one of two kinds:
+// - 'allocation': a standing marker for which team owns a recurring time
+//   slot. It just holds team + date + time - no game details.
+// - 'game': the actual game/practice/etc. filled in for a slot (opponent,
+//   home/away, notes...). Games are separate rows from the allocation that
+//   "owns" their slot, so filling in a game never overwrites the marker.
+export const ENTRY_KIND = { ALLOCATION: 'allocation', GAME: 'game' }
+
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

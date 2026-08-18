@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import CalendarView from './components/CalendarView'
 import EventModal from './components/EventModal'
-import { TEAMS, OPEN_TEAM } from './constants'
+import { TEAMS, OPEN_TEAM, ENTRY_KIND } from './constants'
 import { MONTH_NAMES, SEASON_MONTHS, clampToSeason } from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
 import sheWolvesLogo from './assets/she-wolves-logo.png'
@@ -103,12 +103,13 @@ export default function App() {
   }
 
   // ---------- Season stats ----------
-  // "Open" entries are unclaimed ice holds, not confirmed games, so they're
-  // excluded from the games count until reassigned to a real team.
+  // Allocations are just slot markers, and "Open" entries are unclaimed ice
+  // holds - neither counts as a confirmed game.
   const seasonGames = useMemo(
     () =>
       events.filter(
         (ev) =>
+          ev.kind !== ENTRY_KIND.ALLOCATION &&
           ev.event_type === 'Game' &&
           ev.team !== OPEN_TEAM &&
           ev.date >= SEASON_START_KEY &&
@@ -145,7 +146,7 @@ export default function App() {
           </div>
           <img className="brand-logo" src={sheWolvesLogo} alt="She Wolves logo" />
         </div>
-        <button className="add-btn" onClick={() => setModalState({ mode: 'add' })}>
+        <button className="add-btn" onClick={() => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME })}>
           + Add Schedule Entry
         </button>
       </header>
@@ -185,8 +186,8 @@ export default function App() {
           year={year}
           month={month}
           events={visibleEvents}
-          onDayClick={(dateKey) => setModalState({ mode: 'add', defaultDate: dateKey })}
-          onEventClick={(ev) => setModalState({ mode: 'edit', event: ev })}
+          onDayClick={(dateKey) => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME, defaultDate: dateKey })}
+          onEventClick={(ev) => setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })}
         />
       )}
 
@@ -219,11 +220,24 @@ export default function App() {
 
       {modalState && (
         <EventModal
+          key={JSON.stringify(modalState)}
           initialEvent={modalState.event}
           defaultDate={modalState.defaultDate}
+          kind={modalState.kind}
+          prefillTeam={modalState.prefillTeam}
+          prefillTime={modalState.prefillTime}
           onClose={() => setModalState(null)}
           onSave={handleSave}
           onDelete={handleDelete}
+          onFillGame={({ team, date, time }) =>
+            setModalState({
+              mode: 'add',
+              kind: ENTRY_KIND.GAME,
+              defaultDate: date,
+              prefillTeam: team,
+              prefillTime: time,
+            })
+          }
         />
       )}
     </div>

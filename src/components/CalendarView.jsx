@@ -1,4 +1,4 @@
-import { WEEKDAYS, OPEN_TEAM } from '../constants'
+import { WEEKDAYS, OPEN_TEAM, ENTRY_KIND } from '../constants'
 import { buildMonthGrid, todayKey, formatTime12h } from '../dateUtils'
 
 // Column 0/6 (Sun/Sat) are always wider. Columns 1-5 (Mon-Fri) start
@@ -46,20 +46,40 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
           if (cell.blank) {
             return <div key={cell.dateKey} className="day-cell day-cell-blank" aria-hidden="true" />
           }
-          const dayEvents = (eventsByDay[cell.dateKey] || []).sort((a, b) =>
+          const dayEntries = (eventsByDay[cell.dateKey] || []).sort((a, b) =>
             (a.time || '').localeCompare(b.time || '')
           )
+          const allocations = dayEntries.filter((ev) => ev.kind === ENTRY_KIND.ALLOCATION)
+          const games = dayEntries.filter((ev) => ev.kind !== ENTRY_KIND.ALLOCATION)
+
           return (
             <div
               key={cell.dateKey}
               className="day-cell"
               data-muted={cell.muted}
               data-today={cell.dateKey === today}
-              data-has-events={dayEvents.length > 0}
+              data-has-events={dayEntries.length > 0}
             >
               <span className="day-number">{cell.day}</span>
+
+              {allocations.length > 0 && (
+                <div className="day-allocations">
+                  {allocations.map((ev) => (
+                    <button
+                      key={ev.id}
+                      className="allocation-chip"
+                      data-open={ev.team === OPEN_TEAM}
+                      onClick={() => onEventClick(ev)}
+                      title={`${ev.team} slot${ev.time ? ` @ ${formatTime12h(ev.time)}` : ''} - click to fill in a game or reassign`}
+                    >
+                      {ev.time ? formatTime12h(ev.time) : ''} {ev.team}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="day-events">
-                {dayEvents.map((ev) => {
+                {games.map((ev) => {
                   const isOpen = ev.team === OPEN_TEAM
                   return (
                     <button

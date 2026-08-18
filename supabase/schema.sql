@@ -10,6 +10,10 @@ create table if not exists events (
   location text not null default 'home' check (location in ('home', 'away')),
   opponent text,
   notes text,
+  -- 'allocation' = a standing marker for which team owns a recurring time
+  -- slot (no game details). 'game' = the actual game/practice filled into
+  -- a slot, as a separate row from the allocation that owns it.
+  kind text not null default 'game' check (kind in ('allocation', 'game')),
   created_at timestamptz not null default now()
 );
 
