@@ -17,6 +17,16 @@
   --open-soft: #FBF3D9;
   --open-line: #D8C270;
 
+  /* Per-team colors, used for game and tournament chips */
+  --team-bantam: #2E7D32;
+  --team-bantam-soft: #E8F5E9;
+  --team-peewee: #C62828;
+  --team-peewee-soft: #FDECEA;
+  --team-squirt: #1A237E;
+  --team-squirt-soft: #E8EAF6;
+  --team-shewolves: #0288D1;
+  --team-shewolves-soft: #E1F5FE;
+
   /* Type */
   --font-display: 'Archivo Black', sans-serif;
   --font-condensed: 'Barlow Semi Condensed', sans-serif;
@@ -299,6 +309,28 @@ button {
   width: 100%;
 }
 
+/* Tournaments are team-specific, so they take the team's solid color;
+   on-ice events are rink-wide and stay the default black. */
+.rink-event-chip[data-kind="tournament"][data-team="Bantam"] {
+  border-color: var(--team-bantam);
+  background: var(--team-bantam);
+}
+
+.rink-event-chip[data-kind="tournament"][data-team="Peewee"] {
+  border-color: var(--team-peewee);
+  background: var(--team-peewee);
+}
+
+.rink-event-chip[data-kind="tournament"][data-team="Squirt"] {
+  border-color: var(--team-squirt);
+  background: var(--team-squirt);
+}
+
+.rink-event-chip[data-kind="tournament"][data-team="She Wolves"] {
+  border-color: var(--team-shewolves);
+  background: var(--team-shewolves);
+}
+
 .day-allocations {
   display: flex;
   flex-direction: column;
@@ -347,9 +379,29 @@ button {
   width: 100%;
 }
 
+/* Away games keep the team color but read as dashed (vs. solid for home). */
 .event-chip[data-loc="away"] {
-  border-left-color: var(--away);
-  background: var(--away-soft);
+  border-left-style: dashed;
+}
+
+.event-chip[data-team="Bantam"] {
+  border-left-color: var(--team-bantam);
+  background: var(--team-bantam-soft);
+}
+
+.event-chip[data-team="Peewee"] {
+  border-left-color: var(--team-peewee);
+  background: var(--team-peewee-soft);
+}
+
+.event-chip[data-team="Squirt"] {
+  border-left-color: var(--team-squirt);
+  background: var(--team-squirt-soft);
+}
+
+.event-chip[data-team="She Wolves"] {
+  border-left-color: var(--team-shewolves);
+  background: var(--team-shewolves-soft);
 }
 
 .event-chip[data-open="true"] {
@@ -611,6 +663,10 @@ button {
 }
 .legend i.home { background: var(--home); }
 .legend i.away { background: var(--away); }
+.legend i.team-swatch-bantam { background: var(--team-bantam); }
+.legend i.team-swatch-peewee { background: var(--team-peewee); }
+.legend i.team-swatch-squirt { background: var(--team-squirt); }
+.legend i.team-swatch-shewolves { background: var(--team-shewolves); }
 
 /* ---------- Stats table ---------- */
 

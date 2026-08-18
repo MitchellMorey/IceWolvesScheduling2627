@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient'
 import CalendarView from './components/CalendarView'
 import EventModal from './components/EventModal'
 import RinkEventModal from './components/RinkEventModal'
-import { TEAMS, OPEN_TEAM, ENTRY_KIND } from './constants'
+import { TEAMS, REAL_TEAMS, OPEN_TEAM, ENTRY_KIND } from './constants'
 import { MONTH_NAMES, SEASON_MONTHS, clampToSeason, formatTime12h } from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
 import sheWolvesLogo from './assets/she-wolves-logo.png'
@@ -189,36 +189,70 @@ export default function App() {
 
   // ---------- Season stats ----------
   // Allocations are just slot markers, and "Open" entries are unclaimed ice
-  // holds - neither counts as a confirmed game.
-  const seasonGames = useMemo(
-    () =>
-      events.filter(
+  // holds - neither counts as a confirmed game. A tournament isn't a single
+  // game, but it occupies the rink like one - each tournament counts as
+  // three home games for the team it's booked for.
+  const TOURNAMENT_GAME_CREDIT = 3
+
+  const monthKeyPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
+
+  const seasonGamesByTeam = useMemo(() => {
+    const map = {}
+    REAL_TEAMS.forEach((team) => { map[team] = [] })
+    events
+      .filter(
         (ev) =>
-          ev.kind !== ENTRY_KIND.ALLOCATION &&
+          ev.kind === ENTRY_KIND.GAME &&
           ev.event_type === 'Game' &&
           ev.team !== OPEN_TEAM &&
           ev.date >= SEASON_START_KEY &&
           ev.date <= SEASON_END_KEY
-      ),
-    [events]
-  )
+      )
+      .forEach((ev) => {
+        if (map[ev.team]) map[ev.team].push(ev)
+      })
+    return map
+  }, [events])
 
-  const monthKeyPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
-  const monthGames = useMemo(
-    () => seasonGames.filter((ev) => ev.date.startsWith(monthKeyPrefix)),
-    [seasonGames, monthKeyPrefix]
-  )
+  const seasonTournamentsByTeam = useMemo(() => {
+    const map = {}
+    REAL_TEAMS.forEach((team) => { map[team] = [] })
+    events
+      .filter(
+        (ev) =>
+          ev.kind === ENTRY_KIND.TOURNAMENT &&
+          ev.date >= SEASON_START_KEY &&
+          ev.date <= SEASON_END_KEY
+      )
+      .forEach((ev) => {
+        if (map[ev.team]) map[ev.team].push(ev)
+      })
+    return map
+  }, [events])
 
-  const stats = useMemo(() => {
+  const teamStats = useMemo(() => {
     const count = (list, loc) => list.filter((ev) => ev.location === loc).length
-    return {
-      totalGamesSeason: seasonGames.length,
-      homeGamesMonth: count(monthGames, 'home'),
-      awayGamesMonth: count(monthGames, 'away'),
-      homeGamesSeason: count(seasonGames, 'home'),
-      awayGamesSeason: count(seasonGames, 'away'),
-    }
-  }, [seasonGames, monthGames])
+    return REAL_TEAMS.map((team) => {
+      const games = seasonGamesByTeam[team] || []
+      const tournaments = seasonTournamentsByTeam[team] || []
+      const monthGames = games.filter((ev) => ev.date.startsWith(monthKeyPrefix))
+      const monthTournaments = tournaments.filter((ev) => ev.date.startsWith(monthKeyPrefix))
+
+      const homeGamesSeason = count(games, 'home') + tournaments.length * TOURNAMENT_GAME_CREDIT
+      const awayGamesSeason = count(games, 'away')
+      const homeGamesMonth = count(monthGames, 'home') + monthTournaments.length * TOURNAMENT_GAME_CREDIT
+      const awayGamesMonth = count(monthGames, 'away')
+
+      return {
+        team,
+        totalGamesSeason: homeGamesSeason + awayGamesSeason,
+        homeGamesMonth,
+        awayGamesMonth,
+        homeGamesSeason,
+        awayGamesSeason,
+      }
+    })
+  }, [seasonGamesByTeam, seasonTournamentsByTeam, monthKeyPrefix])
 
   return (
     <div className="app">
@@ -279,14 +313,18 @@ export default function App() {
       )}
 
       <div className="legend">
-        <span><i className="home" /> Home</span>
-        <span><i className="away" /> Away</span>
+        <span><i className="home" /> Home (solid)</span>
+        <span><i className="away" /> Away (dashed)</span>
+        {REAL_TEAMS.map((team) => (
+          <span key={team}><i className={`team-swatch team-swatch-${team.replace(/\s+/g, '').toLowerCase()}`} /> {team}</span>
+        ))}
       </div>
 
       <table className="stats-table">
         <caption>Season Stats — {MONTH_NAMES[month]} {year}</caption>
         <thead>
           <tr>
+            <th>Team</th>
             <th>Total Games This Season</th>
             <th>Home Games This Month</th>
             <th>Away Games This Month</th>
@@ -295,15 +333,21 @@ export default function App() {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>{stats.totalGamesSeason}</td>
-            <td>{stats.homeGamesMonth}</td>
-            <td>{stats.awayGamesMonth}</td>
-            <td>{stats.homeGamesSeason}</td>
-            <td>{stats.awayGamesSeason}</td>
-          </tr>
+          {teamStats.map((row) => (
+            <tr key={row.team}>
+              <td>{row.team}</td>
+              <td>{row.totalGamesSeason}</td>
+              <td>{row.homeGamesMonth}</td>
+              <td>{row.awayGamesMonth}</td>
+              <td>{row.homeGamesSeason}</td>
+              <td>{row.awayGamesSeason}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
+      <p className="modal-hint" style={{ marginTop: '8px' }}>
+        Each tournament counts as {TOURNAMENT_GAME_CREDIT} home games for that team.
+      </p>
 
       {modalState && (
         <EventModal

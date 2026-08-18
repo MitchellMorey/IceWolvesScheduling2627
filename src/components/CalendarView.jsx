@@ -132,6 +132,7 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
                       key={ev.id}
                       className="rink-event-chip"
                       data-kind={ev.chipKind}
+                      data-team={ev.team || ''}
                       onClick={() => onRinkEventClick(ev)}
                       title={
                         ev.chipKind === ENTRY_KIND.TOURNAMENT
@@ -186,6 +187,7 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
                       key={ev.id}
                       className="event-chip"
                       data-loc={ev.location}
+                      data-team={ev.team}
                       data-open={isOpen}
                       onClick={() => onEventClick(ev)}
                       title={isOpen ? 'Open ice - not yet assigned' : `${ev.team} · ${ev.event_type}`}
