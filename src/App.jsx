@@ -112,7 +112,9 @@ export default function App() {
         return true
       }
 
-      // on_ice_event: rink-wide - any team's game on this date/time conflicts.
+      // on_ice_event: rink-wide - any team's home game on this date/time
+      // conflicts. All-day covers the whole date regardless of time.
+      if (form.all_day) return true
       if (!ev.time) return true
       if (form.time && ev.time < form.time) return false
       if (form.end_time && ev.time >= form.end_time) return false

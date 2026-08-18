@@ -90,6 +90,7 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
             })
             if (coveredByTournament) return false
             const coveredByOnIce = onIceForDay.some((t) => {
+              if (t.all_day) return true
               if (!t.time || !t.end_time || !alloc.time) return true
               return alloc.time >= t.time && alloc.time < t.end_time
             })
@@ -134,12 +135,16 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
                       onClick={() => onRinkEventClick(ev)}
                       title={
                         ev.chipKind === ENTRY_KIND.TOURNAMENT
-                          ? `${ev.team} Tournament${ev.date !== ev.end_date ? ` (${ev.date} to ${ev.end_date})` : ''}`
+                          ? `${ev.team} Tournament${ev.date !== ev.end_date ? ` (${ev.date} to ${ev.end_date})` : ''}${ev.all_day ? ' - All day' : ''}`
+                          : ev.all_day
+                          ? 'On-Ice Event - All day'
                           : `On-Ice Event ${formatTime12h(ev.time)}–${formatTime12h(ev.end_time)}`
                       }
                     >
                       {ev.chipKind === ENTRY_KIND.TOURNAMENT
                         ? `${ev.team} Tournament`
+                        : ev.all_day
+                        ? 'On-Ice · All day'
                         : `On-Ice ${formatTime12h(ev.time)}–${formatTime12h(ev.end_time)}`}
                     </button>
                   ))}
