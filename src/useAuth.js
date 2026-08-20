@@ -43,6 +43,17 @@ export function useAuth() {
   }, [session?.user?.email])
 
   async function sendMagicLink(email) {
+    // Check the approved-editors allowlist first so we never send a login
+    // email to someone who isn't on it - avoids spamming/confusing people
+    // who have no reason to sign in (viewing never requires login).
+    const { data: approved, error: checkError } = await supabase.rpc('is_approved_editor', {
+      check_email: email,
+    })
+    if (checkError) throw checkError
+    if (!approved) {
+      throw new Error('That email isn’t on the approved editors list.')
+    }
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.origin },

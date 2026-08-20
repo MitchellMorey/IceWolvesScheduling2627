@@ -355,35 +355,37 @@ export default function App() {
             sendMagicLink={sendMagicLink}
             signOut={signOut}
           />
-          <div className="slots-btn-wrap">
-            <button
-              type="button"
-              className="slots-btn"
-              onClick={() => setSlotsDropdownOpen((open) => !open)}
-            >
-              Game Availability ▾
-            </button>
-            {slotsDropdownOpen && (
-              <>
-                <div className="slots-dropdown-backdrop" onClick={() => setSlotsDropdownOpen(false)} />
-                <div className="slots-dropdown">
-                  {REAL_TEAMS.map((team) => (
-                    <button
-                      key={team}
-                      type="button"
-                      className="slots-dropdown-item"
-                      onClick={() => {
-                        setSlotsTeam(team)
-                        setSlotsDropdownOpen(false)
-                      }}
-                    >
-                      {team}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          {userEmail && (
+            <div className="slots-btn-wrap">
+              <button
+                type="button"
+                className="slots-btn"
+                onClick={() => setSlotsDropdownOpen((open) => !open)}
+              >
+                Game Availability ▾
+              </button>
+              {slotsDropdownOpen && (
+                <>
+                  <div className="slots-dropdown-backdrop" onClick={() => setSlotsDropdownOpen(false)} />
+                  <div className="slots-dropdown">
+                    {REAL_TEAMS.map((team) => (
+                      <button
+                        key={team}
+                        type="button"
+                        className="slots-dropdown-item"
+                        onClick={() => {
+                          setSlotsTeam(team)
+                          setSlotsDropdownOpen(false)
+                        }}
+                      >
+                        {team}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {isEditor && (
             <button className="add-btn" onClick={() => setRinkModalState({ mode: 'add' })}>
               + Add Rink Event
