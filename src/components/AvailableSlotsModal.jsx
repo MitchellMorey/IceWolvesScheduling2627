@@ -26,6 +26,15 @@ export default function AvailableSlotsModal({ team, slots, travelDates, onClose 
       if (ref.current) container.appendChild(ref.current.cloneNode(true))
     })
 
+    // The on-screen list scrolls (max-height + overflow-y) so the popup
+    // itself stays a fixed size, but that same scroll clipping would carry
+    // into the clipboard as a cramped, scrollable table. Let the copied
+    // version expand to show every row instead.
+    container.querySelectorAll('.slots-list').forEach((list) => {
+      list.style.maxHeight = 'none'
+      list.style.overflow = 'visible'
+    })
+
     document.body.appendChild(container)
 
     const range = document.createRange()

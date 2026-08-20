@@ -369,6 +369,12 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Grid items default to a minimum width based on their content's
+     min-content size, which can force the whole grid (and the page) wider
+     than the viewport on narrow screens if a chip's text can't wrap small
+     enough. min-width: 0 lets the cell shrink to its column's actual fr
+     width instead, so the grid never overflows sideways. */
+  min-width: 0;
 }
 
 .day-cell[data-muted="true"] {
@@ -415,6 +421,7 @@ button {
   color: #fff;
   font-family: var(--font-condensed);
   width: 100%;
+  overflow-wrap: break-word;
 }
 
 /* Tournaments are team-specific, so they take the team's solid color;
@@ -458,6 +465,7 @@ button {
   color: var(--ink-soft);
   font-family: var(--font-condensed);
   width: 100%;
+  overflow-wrap: break-word;
 }
 
 .allocation-chip[data-open="true"] {
@@ -485,6 +493,7 @@ button {
   color: var(--ink);
   font-family: var(--font-body);
   width: 100%;
+  overflow-wrap: break-word;
 }
 
 /* Away games keep the team color but read as dashed (vs. solid for home). */
