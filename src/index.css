@@ -134,6 +134,32 @@ button {
   gap: 12px;
 }
 
+.login-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-condensed);
+  font-size: 13px;
+}
+
+.login-status {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.login-link-btn {
+  background: none;
+  border: none;
+  color: var(--rink-navy);
+  font-family: var(--font-condensed);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  text-decoration: underline;
+  padding: 4px;
+}
+
 .slots-btn-wrap {
   position: relative;
 }

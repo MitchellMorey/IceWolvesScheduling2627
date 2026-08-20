@@ -17,7 +17,7 @@ function emptyRinkForm(kind, dateKey) {
   }
 }
 
-export default function RinkEventModal({ initialEvent, defaultDate, onClose, onSave, onDelete }) {
+export default function RinkEventModal({ initialEvent, defaultDate, readOnly = false, onClose, onSave, onDelete }) {
   const [kind, setKind] = useState(initialEvent?.kind || ENTRY_KIND.TOURNAMENT)
   const [form, setForm] = useState(
     initialEvent
@@ -126,9 +126,9 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>{initialEvent ? 'Edit Rink Event' : 'Add Rink Event'}</h2>
+        <h2>{readOnly ? 'Rink Event' : initialEvent ? 'Edit Rink Event' : 'Add Rink Event'}</h2>
 
-        {!initialEvent && (
+        {!initialEvent && !readOnly && (
           <div className="loc-toggle type-toggle" style={{ marginBottom: '16px' }}>
             <button
               type="button"
@@ -161,7 +161,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
           {isTournament && (
             <div className="field">
               <label htmlFor="rink-team">Team</label>
-              <select id="rink-team" value={form.team || ''} onChange={update('team')}>
+              <select id="rink-team" value={form.team || ''} onChange={update('team')} disabled={readOnly}>
                 {REAL_TEAMS.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
@@ -171,13 +171,13 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
 
           <div className="field">
             <label htmlFor="rink-date">{isTournament ? 'Start Date' : 'Date'}</label>
-            <input id="rink-date" type="date" value={form.date} onChange={update('date')} required />
+            <input id="rink-date" type="date" value={form.date} onChange={update('date')} required disabled={readOnly} />
           </div>
 
           {isTournament && (
             <div className="field">
               <label htmlFor="rink-end-date">End Date</label>
-              <input id="rink-end-date" type="date" value={form.end_date} onChange={update('end_date')} required />
+              <input id="rink-end-date" type="date" value={form.end_date} onChange={update('end_date')} required disabled={readOnly} />
             </div>
           )}
 
@@ -191,6 +191,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
                 onChange={update('title')}
                 placeholder="e.g. Zamboni Resurface, Public Skate"
                 required
+                disabled={readOnly}
               />
             </div>
           )}
@@ -201,6 +202,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
                 type="checkbox"
                 checked={form.all_day}
                 onChange={(e) => setForm({ ...form, all_day: e.target.checked })}
+                disabled={readOnly}
               />{' '}
               All day
             </label>
@@ -216,6 +218,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
                   value={form.time}
                   onChange={update('time')}
                   required={!form.all_day}
+                  disabled={readOnly}
                 />
               </div>
               <div className="field">
@@ -226,6 +229,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
                   value={form.end_time}
                   onChange={update('end_time')}
                   required={!form.all_day}
+                  disabled={readOnly}
                 />
               </div>
             </>
@@ -238,6 +242,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
               value={form.notes}
               onChange={update('notes')}
               placeholder="Details, host rink, etc."
+              disabled={readOnly}
             />
           </div>
 
@@ -257,17 +262,23 @@ export default function RinkEventModal({ initialEvent, defaultDate, onClose, onS
 
           <div className="modal-actions">
             <div>
-              {initialEvent && (
+              {initialEvent && !readOnly && (
                 <button type="button" className="btn-delete" onClick={handleDelete} disabled={saving}>
                   Delete
                 </button>
               )}
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
+              {readOnly ? (
+                <button type="button" className="btn-primary" onClick={onClose}>Close</button>
+              ) : (
+                <>
+                  <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={saving}>
+                    {saving ? 'Saving…' : 'Save'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </form>

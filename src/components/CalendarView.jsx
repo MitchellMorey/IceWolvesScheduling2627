@@ -8,7 +8,7 @@ const WEEKEND_WIDTH = '1.25fr'
 const WEEKDAY_NARROW = '0.8fr'
 const WEEKDAY_EXPANDED = '1.15fr'
 
-export default function CalendarView({ year, month, events, onDayClick, onEventClick, onGroupClick, onRinkEventClick }) {
+export default function CalendarView({ year, month, events, isEditor, onDayClick, onEventClick, onGroupClick, onRinkEventClick }) {
   const cells = buildMonthGrid(year, month)
   const today = todayKey()
 
@@ -198,9 +198,11 @@ export default function CalendarView({ year, month, events, onDayClick, onEventC
                   )
                 })}
               </div>
-              <button className="day-add" onClick={() => onDayClick(cell.dateKey)}>
-                + Add
-              </button>
+              {isEditor && (
+                <button className="day-add" onClick={() => onDayClick(cell.dateKey)}>
+                  + Add
+                </button>
+              )}
             </div>
           )
         })}

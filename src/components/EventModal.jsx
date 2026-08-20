@@ -67,7 +67,7 @@ function GroupAllocationRow({ allocation, onReassignRow, onDeleteRow, onFillGame
   )
 }
 
-function GroupAllocationModal({ group, onClose, onReassignRow, onDeleteRow, onFillGame }) {
+function GroupAllocationModal({ group, readOnly, onClose, onReassignRow, onDeleteRow, onFillGame }) {
   const [rows, setRows] = useState(group)
   const time = rows[0]?.time
   const date = rows[0]?.date
@@ -81,22 +81,29 @@ function GroupAllocationModal({ group, onClose, onReassignRow, onDeleteRow, onFi
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Shared Time Slot{time ? ` — ${formatTime12h(time)}` : ''}</h2>
         <p className="modal-hint">
-          These teams share this ice time. Reassign a team, remove its hold, or fill in a game
-          for whichever team is actually playing - the other team's hold stays as-is.
+          {readOnly
+            ? 'These teams share this ice time.'
+            : "These teams share this ice time. Reassign a team, remove its hold, or fill in a game for whichever team is actually playing - the other team's hold stays as-is."}
         </p>
 
         {rows.length === 0 && <p>No teams left holding this slot.</p>}
 
-        {rows.map((allocation) => (
-          <GroupAllocationRow
-            key={allocation.id}
-            allocation={allocation}
-            onReassignRow={onReassignRow}
-            onDeleteRow={onDeleteRow}
-            onFillGame={onFillGame}
-            onRowRemoved={handleRowRemoved}
-          />
-        ))}
+        {readOnly
+          ? rows.map((allocation) => (
+              <div className="group-row" key={allocation.id}>
+                <span>{allocation.team}</span>
+              </div>
+            ))
+          : rows.map((allocation) => (
+              <GroupAllocationRow
+                key={allocation.id}
+                allocation={allocation}
+                onReassignRow={onReassignRow}
+                onDeleteRow={onDeleteRow}
+                onFillGame={onFillGame}
+                onRowRemoved={handleRowRemoved}
+              />
+            ))}
 
         <div className="modal-actions">
           <div />
@@ -116,6 +123,7 @@ export default function EventModal({
   kind = ENTRY_KIND.GAME,
   prefillTeam,
   prefillTime,
+  readOnly = false,
   onClose,
   onSave,
   onDelete,
@@ -144,6 +152,7 @@ export default function EventModal({
     return (
       <GroupAllocationModal
         group={group}
+        readOnly={readOnly}
         onClose={onClose}
         onReassignRow={onReassignRow}
         onDeleteRow={onDeleteRow}
@@ -196,7 +205,11 @@ export default function EventModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>
-          {isAllocation
+          {readOnly
+            ? isAllocation
+              ? 'Time Slot Allocation'
+              : 'Schedule Entry'
+            : isAllocation
             ? initialEvent
               ? 'Edit Time Slot Allocation'
               : 'Add Time Slot Allocation'
@@ -205,7 +218,7 @@ export default function EventModal({
             : 'Add Schedule Entry'}
         </h2>
 
-        {isAllocation && (
+        {isAllocation && !readOnly && (
           <p className="modal-hint">
             This just marks which team owns this ice time. It won't show up as a game -
             use "Fill In Game For This Slot" below once the details are known.
@@ -217,7 +230,7 @@ export default function EventModal({
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="team">Team</label>
-            <select id="team" value={form.team} onChange={update('team')}>
+            <select id="team" value={form.team} onChange={update('team')} disabled={readOnly}>
               {TEAMS.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
@@ -226,19 +239,19 @@ export default function EventModal({
 
           <div className="field">
             <label htmlFor="date">Date</label>
-            <input id="date" type="date" value={form.date} onChange={update('date')} required />
+            <input id="date" type="date" value={form.date} onChange={update('date')} required disabled={readOnly} />
           </div>
 
           <div className="field">
             <label htmlFor="time">Time</label>
-            <input id="time" type="time" value={form.time} onChange={update('time')} />
+            <input id="time" type="time" value={form.time} onChange={update('time')} disabled={readOnly} />
           </div>
 
           {!isAllocation && (
             <>
               <div className="field">
                 <label htmlFor="event_type">Type</label>
-                <select id="event_type" value={form.event_type} onChange={update('event_type')}>
+                <select id="event_type" value={form.event_type} onChange={update('event_type')} disabled={readOnly}>
                   {EVENT_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
@@ -252,7 +265,8 @@ export default function EventModal({
                     type="button"
                     data-loc="home"
                     data-active={form.location === 'home'}
-                    onClick={() => setForm({ ...form, location: 'home' })}
+                    onClick={() => !readOnly && setForm({ ...form, location: 'home' })}
+                    disabled={readOnly}
                   >
                     Home
                   </button>
@@ -260,7 +274,8 @@ export default function EventModal({
                     type="button"
                     data-loc="away"
                     data-active={form.location === 'away'}
-                    onClick={() => setForm({ ...form, location: 'away' })}
+                    onClick={() => !readOnly && setForm({ ...form, location: 'away' })}
+                    disabled={readOnly}
                   >
                     Away
                   </button>
@@ -269,17 +284,17 @@ export default function EventModal({
 
               <div className="field">
                 <label htmlFor="opponent">Opponent (optional)</label>
-                <input id="opponent" type="text" value={form.opponent} onChange={update('opponent')} placeholder="e.g. Stoughton" />
+                <input id="opponent" type="text" value={form.opponent} onChange={update('opponent')} placeholder="e.g. Stoughton" disabled={readOnly} />
               </div>
 
               <div className="field">
                 <label htmlFor="notes">Notes (optional)</label>
-                <textarea id="notes" value={form.notes} onChange={update('notes')} placeholder="Rink, carpool, reminders..." />
+                <textarea id="notes" value={form.notes} onChange={update('notes')} placeholder="Rink, carpool, reminders..." disabled={readOnly} />
               </div>
             </>
           )}
 
-          {isAllocation && initialEvent && (
+          {isAllocation && initialEvent && !readOnly && (
             <button type="button" className="btn-fill-game" onClick={handleFillGame} disabled={saving}>
               + Fill In Game For This Slot
             </button>
@@ -287,17 +302,23 @@ export default function EventModal({
 
           <div className="modal-actions">
             <div>
-              {initialEvent && (
+              {initialEvent && !readOnly && (
                 <button type="button" className="btn-delete" onClick={handleDelete} disabled={saving}>
                   Delete
                 </button>
               )}
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
+              {readOnly ? (
+                <button type="button" className="btn-primary" onClick={onClose}>Close</button>
+              ) : (
+                <>
+                  <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={saving}>
+                    {saving ? 'Saving…' : 'Save'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </form>

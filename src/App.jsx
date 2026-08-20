@@ -4,6 +4,8 @@ import CalendarView from './components/CalendarView'
 import EventModal from './components/EventModal'
 import RinkEventModal from './components/RinkEventModal'
 import AvailableSlotsModal from './components/AvailableSlotsModal'
+import LoginControl from './components/LoginControl'
+import { useAuth } from './useAuth'
 import { TEAMS, REAL_TEAMS, OPEN_TEAM, ENTRY_KIND } from './constants'
 import { MONTH_NAMES, SEASON_MONTHS, clampToSeason, formatTime12h, toDateKey } from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
@@ -17,6 +19,7 @@ const SEASON_START_KEY = '2026-11-01'
 const SEASON_END_KEY = '2027-02-28'
 
 export default function App() {
+  const { userEmail, isEditor, authLoading, sendMagicLink, signOut } = useAuth()
   const now = new Date()
   const initial = clampToSeason(now.getFullYear(), now.getMonth())
   const [year, setYear] = useState(initial.year)
@@ -345,6 +348,13 @@ export default function App() {
           <img className="brand-logo" src={sheWolvesLogo} alt="She Wolves logo" />
         </div>
         <div className="header-actions">
+          <LoginControl
+            userEmail={userEmail}
+            isEditor={isEditor}
+            authLoading={authLoading}
+            sendMagicLink={sendMagicLink}
+            signOut={signOut}
+          />
           <div className="slots-btn-wrap">
             <button
               type="button"
@@ -374,9 +384,11 @@ export default function App() {
               </>
             )}
           </div>
-          <button className="add-btn" onClick={() => setRinkModalState({ mode: 'add' })}>
-            + Add Rink Event
-          </button>
+          {isEditor && (
+            <button className="add-btn" onClick={() => setRinkModalState({ mode: 'add' })}>
+              + Add Rink Event
+            </button>
+          )}
         </div>
       </header>
 
@@ -415,6 +427,7 @@ export default function App() {
           year={year}
           month={month}
           events={visibleEvents}
+          isEditor={isEditor}
           onDayClick={(dateKey) => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME, defaultDate: dateKey })}
           onEventClick={(ev) => setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })}
           onGroupClick={(group) => setModalState({ mode: 'group', group })}
@@ -465,6 +478,7 @@ export default function App() {
           kind={modalState.kind}
           prefillTeam={modalState.prefillTeam}
           prefillTime={modalState.prefillTime}
+          readOnly={!isEditor}
           onClose={() => setModalState(null)}
           onSave={handleSave}
           onDelete={handleDelete}
@@ -487,6 +501,7 @@ export default function App() {
           key={JSON.stringify(rinkModalState)}
           initialEvent={rinkModalState.event}
           defaultDate={rinkModalState.defaultDate}
+          readOnly={!isEditor}
           onClose={() => setRinkModalState(null)}
           onSave={handleSaveRinkEvent}
           onDelete={handleDeleteRinkEvent}
