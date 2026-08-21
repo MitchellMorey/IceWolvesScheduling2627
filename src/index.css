@@ -241,6 +241,10 @@ button {
 .slots-list-time {
   font-family: var(--font-mono);
   color: var(--ink-soft);
+  /* Explicit gap (not just flex's space-between) so there's still
+     visible space between the date and time when this list is pasted
+     somewhere that doesn't honor display:flex (e.g. an email client). */
+  margin-left: 24px;
 }
 
 .modal-copy-row {

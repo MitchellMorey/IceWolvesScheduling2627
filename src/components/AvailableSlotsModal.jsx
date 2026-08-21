@@ -21,6 +21,13 @@ export default function AvailableSlotsModal({ team, slots, travelDates, onClose 
     container.style.left = '-9999px'
     container.style.opacity = '0'
     container.style.pointerEvents = 'none'
+    // The modal's own width (100%, capped at 460px) is meant to fill a
+    // popup - copied as-is, some paste targets (e.g. an email compose
+    // window) stretch it to fill their own, much wider body, leaving a
+    // big empty gap to the right. Shrink-to-fit instead so the copied
+    // content is only ever as wide as its longest line.
+    container.style.width = 'fit-content'
+    container.style.maxWidth = 'none'
 
     ;[heading1Ref, list1Ref, heading2Ref, list2Ref].forEach((ref) => {
       if (ref.current) container.appendChild(ref.current.cloneNode(true))
@@ -29,10 +36,12 @@ export default function AvailableSlotsModal({ team, slots, travelDates, onClose 
     // The on-screen list scrolls (max-height + overflow-y) so the popup
     // itself stays a fixed size, but that same scroll clipping would carry
     // into the clipboard as a cramped, scrollable table. Let the copied
-    // version expand to show every row instead.
+    // version expand to show every row instead, and shrink its width to
+    // fit its content rather than stretching to fill the modal.
     container.querySelectorAll('.slots-list').forEach((list) => {
       list.style.maxHeight = 'none'
       list.style.overflow = 'visible'
+      list.style.width = 'fit-content'
     })
 
     document.body.appendChild(container)
