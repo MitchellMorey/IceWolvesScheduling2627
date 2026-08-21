@@ -63,7 +63,13 @@ export default function App() {
       if (error) throw error
       setEvents((prev) => prev.map((ev) => (ev.id === existingId ? data[0] : ev)))
     } else {
-      const { data, error } = await supabase.from('events').insert(form).select()
+      // For a brand-new allocation, remember which team it started out
+      // belonging to - this survives later reassignment (e.g. to "Open")
+      // so the app can tell "this team's day off" apart from "this slot
+      // was never held by anyone."
+      const payload =
+        form.kind === ENTRY_KIND.ALLOCATION ? { ...form, original_team: form.team } : form
+      const { data, error } = await supabase.from('events').insert(payload).select()
       if (error) throw error
       setEvents((prev) => [...prev, data[0]])
     }
@@ -238,8 +244,23 @@ export default function App() {
       (ev) => ev.kind === ENTRY_KIND.TOURNAMENT && ev.team === team
     )
 
+    // Dates where this team's own held slot was deliberately marked
+    // "Open" (not just left unfilled) - treated as an intentional day
+    // off, not a travel opportunity, even though no game is scheduled.
+    const teamBlockedOpenDates = new Set(
+      events
+        .filter(
+          (ev) =>
+            ev.kind === ENTRY_KIND.ALLOCATION &&
+            ev.team === OPEN_TEAM &&
+            ev.original_team === team
+        )
+        .map((ev) => ev.date)
+    )
+
     return weekendDates.filter((dateKey) => {
       if (teamGameDates.has(dateKey)) return false
+      if (teamBlockedOpenDates.has(dateKey)) return false
       const coveredByTournament = teamTournaments.some(
         (t) => dateKey >= t.date && dateKey <= (t.end_date || t.date)
       )
