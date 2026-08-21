@@ -193,11 +193,23 @@ export default function App() {
         .filter((ev) => ev.kind === ENTRY_KIND.GAME)
         .map((ev) => `${ev.date}|${ev.team}|${ev.time || ''}`)
     )
+    // Squirt and She Wolves split two ice slots on the same date - once
+    // either of them already has a home game that day (at either slot),
+    // the OTHER slot shouldn't be offered as open too, since that would
+    // mean hosting a second game the same day.
+    const teamHomeGameDates = new Set(
+      events
+        .filter(
+          (ev) => ev.kind === ENTRY_KIND.GAME && ev.team === team && ev.location === 'home'
+        )
+        .map((ev) => ev.date)
+    )
     const tournaments = events.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
     const onIceEvents = events.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
 
     return teamAllocations
       .filter((alloc) => !filledKeys.has(`${alloc.date}|${alloc.team}|${alloc.time || ''}`))
+      .filter((alloc) => !teamHomeGameDates.has(alloc.date))
       .filter((alloc) => {
         const coveredByTournament = tournaments.some((t) => {
           const endDate = t.end_date || t.date
