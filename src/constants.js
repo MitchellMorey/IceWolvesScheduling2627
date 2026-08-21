@@ -8,6 +8,19 @@ export const OPEN_TEAM = 'Open'
 
 export const TEAMS = [...REAL_TEAMS, OPEN_TEAM]
 
+// How long each team's ice time runs, in minutes - used to compute an
+// end time for a slot from its start time + team, and to flag a new/
+// reassigned slot that would run into a neighboring slot without at
+// least MIN_GAP_MINUTES between them.
+export const TEAM_DURATION_MINUTES = {
+  Squirt: 60,
+  'She Wolves': 60,
+  Peewee: 75,
+  Bantam: 90,
+}
+
+export const MIN_GAP_MINUTES = 15
+
 export const EVENT_TYPES = ['Game', 'Practice', 'Tournament', 'Open Skate', 'Other']
 
 // Every schedule entry is one of these kinds:

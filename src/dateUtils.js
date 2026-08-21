@@ -99,6 +99,18 @@ export const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
+export function timeToMinutes(time) {
+  if (!time) return null
+  const [h, m] = time.split(':').map(Number)
+  return h * 60 + m
+}
+
+export function minutesToTime(mins) {
+  const h = Math.floor(mins / 60) % 24
+  const m = mins % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 export function formatTime12h(time) {
   if (!time) return ''
   const [h, m] = time.split(':').map(Number)

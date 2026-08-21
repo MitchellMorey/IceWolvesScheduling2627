@@ -6,8 +6,15 @@ import RinkEventModal from './components/RinkEventModal'
 import AvailableSlotsModal from './components/AvailableSlotsModal'
 import LoginControl from './components/LoginControl'
 import { useAuth } from './useAuth'
-import { TEAMS, REAL_TEAMS, OPEN_TEAM, ENTRY_KIND } from './constants'
-import { MONTH_NAMES, SEASON_MONTHS, clampToSeason, formatTime12h, toDateKey } from './dateUtils'
+import { TEAMS, REAL_TEAMS, OPEN_TEAM, ENTRY_KIND, TEAM_DURATION_MINUTES, MIN_GAP_MINUTES } from './constants'
+import {
+  MONTH_NAMES,
+  SEASON_MONTHS,
+  clampToSeason,
+  formatTime12h,
+  toDateKey,
+  timeToMinutes,
+} from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
 import sheWolvesLogo from './assets/she-wolves-logo.png'
 
@@ -53,7 +60,72 @@ export default function App() {
     setLoading(false)
   }
 
+  // Which team's ice time actually governs a slot's duration: its own
+  // team if it's held by a real team, or whichever team originally held
+  // it if it's currently marked "Open" (an Open slot itself has no game
+  // happening, so it can't be the thing causing a spacing conflict, but
+  // we still need to know its duration to judge gaps around it).
+  function durationTeamFor(ev) {
+    return ev.team === OPEN_TEAM ? ev.original_team : ev.team
+  }
+
+  function durationMinutesFor(ev) {
+    const team = durationTeamFor(ev)
+    return team ? TEAM_DURATION_MINUTES[team] : undefined
+  }
+
+  // Checks a proposed game/allocation (team + date + time) against every
+  // other home ice slot on the same date, using each team's fixed
+  // duration, and flags anything that would overlap or leave less than
+  // MIN_GAP_MINUTES between them. Slots that start at the exact same
+  // time are assumed to be intentionally sharing the ice (e.g. Squirt
+  // and She Wolves splitting a session) and are never flagged against
+  // each other.
+  function findTimeConflict(form, excludeId) {
+    if (form.kind !== ENTRY_KIND.ALLOCATION && form.kind !== ENTRY_KIND.GAME) return []
+    if (form.team === OPEN_TEAM) return [] // freeing up ice can't create a conflict
+    if (form.location && form.location !== 'home') return [] // away games don't use our ice
+    const duration = TEAM_DURATION_MINUTES[form.team]
+    const start = timeToMinutes(form.time)
+    if (!duration || start == null) return []
+    const end = start + duration
+
+    return events.filter((ev) => {
+      if (ev.id === excludeId) return false
+      if (ev.date !== form.date) return false
+      if (ev.kind !== ENTRY_KIND.ALLOCATION && ev.kind !== ENTRY_KIND.GAME) return false
+      if (ev.location && ev.location !== 'home') return false
+      if (ev.team === OPEN_TEAM && !ev.original_team) return false
+      if (ev.time === form.time) return false // same start time = intentional shared ice
+
+      const otherDuration = durationMinutesFor(ev)
+      const otherStart = timeToMinutes(ev.time)
+      if (!otherDuration || otherStart == null) return false
+      const otherEnd = otherStart + otherDuration
+
+      const fitsBefore = end + MIN_GAP_MINUTES <= otherStart
+      const fitsAfter = otherEnd + MIN_GAP_MINUTES <= start
+      return !fitsBefore && !fitsAfter
+    })
+  }
+
+  function throwIfTimeConflict(form, excludeId) {
+    const conflicts = findTimeConflict(form, excludeId)
+    if (conflicts.length === 0) return
+    const duration = TEAM_DURATION_MINUTES[form.team]
+    const list = conflicts
+      .map((c) => `${durationTeamFor(c)} at ${formatTime12h(c.time)}`)
+      .join(', ')
+    throw new Error(
+      `${form.team}'s ${duration} minutes of ice time (plus a ${MIN_GAP_MINUTES}-minute buffer) doesn't fit at ${formatTime12h(
+        form.time
+      )} - it's too close to ${list}.`
+    )
+  }
+
   async function handleSave(form, existingId) {
+    throwIfTimeConflict(form, existingId)
+
     if (existingId) {
       const { data, error } = await supabase
         .from('events')
@@ -87,6 +159,10 @@ export default function App() {
   // reassigning or deleting one row shouldn't close the whole modal - the
   // other team's slot in the group may still need attention.
   async function handleReassignRow(id, team) {
+    const existing = events.find((ev) => ev.id === id)
+    if (existing && team !== OPEN_TEAM) {
+      throwIfTimeConflict({ ...existing, team }, id)
+    }
     const { data, error } = await supabase.from('events').update({ team }).eq('id', id).select()
     if (error) throw error
     setEvents((prev) => prev.map((ev) => (ev.id === id ? data[0] : ev)))
