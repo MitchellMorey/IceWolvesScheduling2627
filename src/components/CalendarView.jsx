@@ -56,7 +56,14 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
           const dayEntries = (eventsByDay[cell.dateKey] || []).sort((a, b) =>
             (a.time || '').localeCompare(b.time || '')
           )
-          const games = dayEntries.filter((ev) => ev.kind !== ENTRY_KIND.ALLOCATION)
+          // Home games listed first (earliest to latest), then away games
+          // below them (also earliest to latest).
+          const games = dayEntries
+            .filter((ev) => ev.kind !== ENTRY_KIND.ALLOCATION)
+            .sort((a, b) => {
+              if (a.location !== b.location) return a.location === 'home' ? -1 : 1
+              return (a.time || '').localeCompare(b.time || '')
+            })
 
           // A game "fills" the allocation that owns its slot when they share
           // the same team and time - once that happens, the allocation
