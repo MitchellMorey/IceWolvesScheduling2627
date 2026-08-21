@@ -478,31 +478,33 @@ export default function App() {
         ))}
       </div>
 
-      <table className="stats-table">
-        <caption>Season Stats — {MONTH_NAMES[month]} {year}</caption>
-        <thead>
-          <tr>
-            <th>Team</th>
-            <th>Total Games This Season</th>
-            <th>Home Games This Month</th>
-            <th>Away Games This Month</th>
-            <th>Total Home Games This Season</th>
-            <th>Total Away Games This Season</th>
-          </tr>
-        </thead>
-        <tbody>
-          {teamStats.map((row) => (
-            <tr key={row.team}>
-              <td>{row.team}</td>
-              <td>{row.totalGamesSeason}</td>
-              <td>{row.homeGamesMonth}</td>
-              <td>{row.awayGamesMonth}</td>
-              <td>{row.homeGamesSeason}</td>
-              <td>{row.awayGamesSeason}</td>
+      {userEmail && (
+        <table className="stats-table">
+          <caption>Season Stats — {MONTH_NAMES[month]} {year}</caption>
+          <thead>
+            <tr>
+              <th>Team</th>
+              <th>Total Games This Season</th>
+              <th>Home Games This Month</th>
+              <th>Away Games This Month</th>
+              <th>Total Home Games This Season</th>
+              <th>Total Away Games This Season</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {teamStats.map((row) => (
+              <tr key={row.team}>
+                <td>{row.team}</td>
+                <td>{row.totalGamesSeason}</td>
+                <td>{row.homeGamesMonth}</td>
+                <td>{row.awayGamesMonth}</td>
+                <td>{row.homeGamesSeason}</td>
+                <td>{row.awayGamesSeason}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {modalState && (
         <EventModal
