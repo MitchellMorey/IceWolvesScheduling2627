@@ -21,6 +21,9 @@ export const TEAM_DURATION_MINUTES = {
 
 export const MIN_GAP_MINUTES = 15
 
+// Status options for an opponent contact's "Scheduled" field.
+export const SCHEDULED_OPTIONS = ['Yes', 'No', 'Contact Made']
+
 export const EVENT_TYPES = ['Game', 'Practice', 'Tournament', 'Open Skate', 'Other']
 
 // Every schedule entry is one of these kinds:

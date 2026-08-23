@@ -599,6 +599,12 @@ button {
   overflow-y: auto;
 }
 
+/* Wider variant for content that needs more horizontal room, like the
+   Opponent Contacts table. */
+.modal-wide {
+  max-width: 720px;
+}
+
 .modal h2 {
   font-family: var(--font-display);
   font-size: 19px;
@@ -872,6 +878,80 @@ button {
   .stats-table { font-size: 12px; }
   .stats-table th, .stats-table td { padding: 8px 6px; }
   .stats-table td { font-size: 14px; }
+}
+
+/* ---------- Opponent contacts table ---------- */
+
+.contacts-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 16px;
+  border: 1px solid var(--ice-line);
+  border-radius: 8px;
+}
+
+.contacts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.contacts-table th {
+  font-family: var(--font-condensed);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-soft);
+  background: var(--ice);
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ice-line);
+  white-space: nowrap;
+}
+
+.contacts-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--ice-line);
+  vertical-align: middle;
+}
+
+.contacts-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.contacts-table input[type='text'],
+.contacts-table input[type='email'],
+.contacts-table select {
+  width: 100%;
+  min-width: 110px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-family: inherit;
+  font-size: 14px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.contacts-table input[type='text']:hover,
+.contacts-table input[type='email']:hover,
+.contacts-table select:hover {
+  border-color: var(--ice-line);
+}
+
+.contacts-table input[type='text']:focus,
+.contacts-table input[type='email']:focus,
+.contacts-table select:focus {
+  outline: none;
+  border-color: var(--rink-navy);
+  background: var(--ice);
+}
+
+.contacts-table .contacts-delete-cell {
+  width: 1%;
+  white-space: nowrap;
+  padding: 4px 8px;
 }
 
 @media (max-width: 640px) {

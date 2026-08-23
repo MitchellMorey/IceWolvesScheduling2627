@@ -4,6 +4,7 @@ import CalendarView from './components/CalendarView'
 import EventModal from './components/EventModal'
 import RinkEventModal from './components/RinkEventModal'
 import AvailableSlotsModal from './components/AvailableSlotsModal'
+import OpponentContactsModal from './components/OpponentContactsModal'
 import LoginControl from './components/LoginControl'
 import { useAuth } from './useAuth'
 import { TEAMS, REAL_TEAMS, OPEN_TEAM, ENTRY_KIND, TEAM_DURATION_MINUTES, MIN_GAP_MINUTES } from './constants'
@@ -39,10 +40,53 @@ export default function App() {
   const [rinkModalState, setRinkModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [slotsDropdownOpen, setSlotsDropdownOpen] = useState(false)
   const [slotsTeam, setSlotsTeam] = useState(null)
+  const [contacts, setContacts] = useState([])
+  const [contactsDropdownOpen, setContactsDropdownOpen] = useState(false)
+  const [contactsTeam, setContactsTeam] = useState(null)
 
   useEffect(() => {
     loadEvents()
   }, [])
+
+  // Opponent contacts are approved-editors-only (RLS enforces this too),
+  // so only bother loading them once someone's confirmed as an editor.
+  useEffect(() => {
+    if (isEditor) loadContacts()
+    else setContacts([])
+  }, [isEditor])
+
+  async function loadContacts() {
+    const { data, error } = await supabase
+      .from('opponent_contacts')
+      .select('*')
+      .order('created_at', { ascending: true })
+    if (!error) setContacts(data)
+  }
+
+  async function handleAddContact(team) {
+    const { data, error } = await supabase
+      .from('opponent_contacts')
+      .insert({ team })
+      .select()
+    if (error) throw error
+    setContacts((prev) => [...prev, data[0]])
+  }
+
+  async function handleUpdateContact(id, patch) {
+    const { data, error } = await supabase
+      .from('opponent_contacts')
+      .update(patch)
+      .eq('id', id)
+      .select()
+    if (error) throw error
+    setContacts((prev) => prev.map((c) => (c.id === id ? data[0] : c)))
+  }
+
+  async function handleDeleteContact(id) {
+    const { error } = await supabase.from('opponent_contacts').delete().eq('id', id)
+    if (error) throw error
+    setContacts((prev) => prev.filter((c) => c.id !== id))
+  }
 
   async function loadEvents() {
     setLoading(true)
@@ -496,6 +540,37 @@ export default function App() {
             </div>
           )}
           {isEditor && (
+            <div className="slots-btn-wrap">
+              <button
+                type="button"
+                className="slots-btn"
+                onClick={() => setContactsDropdownOpen((open) => !open)}
+              >
+                Opponent Contacts ▾
+              </button>
+              {contactsDropdownOpen && (
+                <>
+                  <div className="slots-dropdown-backdrop" onClick={() => setContactsDropdownOpen(false)} />
+                  <div className="slots-dropdown">
+                    {REAL_TEAMS.map((team) => (
+                      <button
+                        key={team}
+                        type="button"
+                        className="slots-dropdown-item"
+                        onClick={() => {
+                          setContactsTeam(team)
+                          setContactsDropdownOpen(false)
+                        }}
+                      >
+                        {team}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {isEditor && (
             <button className="add-btn" onClick={() => setRinkModalState({ mode: 'add' })}>
               + Add Rink Event
             </button>
@@ -627,6 +702,17 @@ export default function App() {
           slots={getOpenSlotsForTeam(slotsTeam)}
           travelDates={getTravelDatesForTeam(slotsTeam)}
           onClose={() => setSlotsTeam(null)}
+        />
+      )}
+
+      {contactsTeam && (
+        <OpponentContactsModal
+          team={contactsTeam}
+          contacts={contacts.filter((c) => c.team === contactsTeam)}
+          onAddContact={handleAddContact}
+          onUpdateContact={handleUpdateContact}
+          onDeleteContact={handleDeleteContact}
+          onClose={() => setContactsTeam(null)}
         />
       )}
     </div>
