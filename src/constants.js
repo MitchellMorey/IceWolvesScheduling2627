@@ -1,4 +1,4 @@
-export const REAL_TEAMS = ['Bantam', 'Peewee', 'Squirt', 'She Wolves']
+export const REAL_TEAMS = ['Bantam', 'Peewee', 'Squirt', 'She Wolves', 'High School', '8U', '6U']
 
 // "Open" is not a real team - it marks ice time that's held/blocked off but
 // not yet claimed by a specific team. It shows up in the team select and
@@ -7,6 +7,12 @@ export const REAL_TEAMS = ['Bantam', 'Peewee', 'Squirt', 'She Wolves']
 export const OPEN_TEAM = 'Open'
 
 export const TEAMS = [...REAL_TEAMS, OPEN_TEAM]
+
+// Teams offered in the Game Availability and Opponent Contacts dropdowns -
+// a deliberately narrower list than REAL_TEAMS. 8U and 6U don't play
+// scheduled opponents the way the older teams do, so they're left out of
+// both.
+export const AVAILABILITY_TEAMS = ['Bantam', 'Peewee', 'Squirt', 'She Wolves', 'High School']
 
 // How long each team's ice time runs, in minutes - used to compute an
 // end time for a slot from its start time + team, and to flag a new/
@@ -17,6 +23,9 @@ export const TEAM_DURATION_MINUTES = {
   'She Wolves': 60,
   Peewee: 75,
   Bantam: 90,
+  'High School': 120,
+  '8U': 60,
+  '6U': 60,
 }
 
 export const MIN_GAP_MINUTES = 15

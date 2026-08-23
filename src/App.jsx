@@ -7,7 +7,7 @@ import AvailableSlotsModal from './components/AvailableSlotsModal'
 import OpponentContactsModal from './components/OpponentContactsModal'
 import LoginControl from './components/LoginControl'
 import { useAuth } from './useAuth'
-import { TEAMS, REAL_TEAMS, OPEN_TEAM, ENTRY_KIND, TEAM_DURATION_MINUTES, MIN_GAP_MINUTES } from './constants'
+import { TEAMS, REAL_TEAMS, AVAILABILITY_TEAMS, OPEN_TEAM, ENTRY_KIND, TEAM_DURATION_MINUTES, MIN_GAP_MINUTES } from './constants'
 import {
   MONTH_NAMES,
   SEASON_MONTHS,
@@ -522,7 +522,7 @@ export default function App() {
                 <>
                   <div className="slots-dropdown-backdrop" onClick={() => setSlotsDropdownOpen(false)} />
                   <div className="slots-dropdown">
-                    {REAL_TEAMS.map((team) => (
+                    {AVAILABILITY_TEAMS.map((team) => (
                       <button
                         key={team}
                         type="button"
@@ -553,7 +553,7 @@ export default function App() {
                 <>
                   <div className="slots-dropdown-backdrop" onClick={() => setContactsDropdownOpen(false)} />
                   <div className="slots-dropdown">
-                    {REAL_TEAMS.map((team) => (
+                    {AVAILABILITY_TEAMS.map((team) => (
                       <button
                         key={team}
                         type="button"
