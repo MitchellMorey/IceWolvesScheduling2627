@@ -709,7 +709,16 @@ export default function App() {
       {contactsTeam && (
         <OpponentContactsModal
           team={contactsTeam}
-          contacts={contacts.filter((c) => c.team === contactsTeam)}
+          contacts={contacts
+            .filter((c) => c.team === contactsTeam)
+            .sort((a, b) => {
+              // Scheduled (Yes/Contact Made) first, Not Scheduled (No)
+              // last - alphabetical by club within each group.
+              const aNo = a.scheduled === 'No'
+              const bNo = b.scheduled === 'No'
+              if (aNo !== bNo) return aNo ? 1 : -1
+              return (a.club || '').localeCompare(b.club || '')
+            })}
           onAddContact={handleAddContact}
           onUpdateContact={handleUpdateContact}
           onDeleteContact={handleDeleteContact}
