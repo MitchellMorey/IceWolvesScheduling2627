@@ -963,6 +963,13 @@ button {
   width: 1%;
   white-space: nowrap;
   padding: 4px 8px;
+}
+
+/* Flex lives on this inner wrapper, not the <td> itself - a <td> with
+   display:flex drops out of the table's row-height layout, which is what
+   caused the row's bottom border to jump slightly right where this cell
+   started. */
+.contacts-actions-row {
   display: flex;
   gap: 6px;
 }

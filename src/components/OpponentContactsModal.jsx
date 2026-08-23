@@ -96,26 +96,28 @@ function ContactRow({ contact, onUpdate, onDelete, autoEdit }) {
         )}
       </td>
       <td className="contacts-actions-cell">
-        <button
-          type="button"
-          className="contacts-icon-btn"
-          onClick={() => (editing ? setEditing(false) : startEditing())}
-          disabled={deleting}
-          title={editing ? 'Done editing' : 'Edit this contact'}
-          aria-label={editing ? 'Done editing' : 'Edit this contact'}
-        >
-          {editing ? '✓' : '✎'}
-        </button>
-        <button
-          type="button"
-          className="contacts-icon-btn contacts-icon-btn-delete"
-          onClick={handleDelete}
-          disabled={deleting}
-          title="Remove this contact"
-          aria-label="Remove this contact"
-        >
-          ✕
-        </button>
+        <div className="contacts-actions-row">
+          <button
+            type="button"
+            className="contacts-icon-btn"
+            onClick={() => (editing ? setEditing(false) : startEditing())}
+            disabled={deleting}
+            title={editing ? 'Done editing' : 'Edit this contact'}
+            aria-label={editing ? 'Done editing' : 'Edit this contact'}
+          >
+            {editing ? '✓' : '✎'}
+          </button>
+          <button
+            type="button"
+            className="contacts-icon-btn contacts-icon-btn-delete"
+            onClick={handleDelete}
+            disabled={deleting}
+            title="Remove this contact"
+            aria-label="Remove this contact"
+          >
+            ✕
+          </button>
+        </div>
       </td>
     </tr>
   )
