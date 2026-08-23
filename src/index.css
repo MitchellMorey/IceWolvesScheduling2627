@@ -948,10 +948,52 @@ button {
   background: var(--ice);
 }
 
-.contacts-table .contacts-delete-cell {
+.contacts-view-text {
+  display: block;
+  padding: 7px 8px;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.contacts-table .contacts-actions-cell {
   width: 1%;
   white-space: nowrap;
   padding: 4px 8px;
+  display: flex;
+  gap: 6px;
+}
+
+.contacts-icon-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ice-line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contacts-icon-btn:hover {
+  border-color: var(--rink-navy);
+  color: var(--rink-navy);
+}
+
+.contacts-icon-btn-delete {
+  color: var(--away);
+}
+
+.contacts-icon-btn-delete:hover {
+  border-color: var(--away);
+  color: var(--away);
 }
 
 @media (max-width: 640px) {

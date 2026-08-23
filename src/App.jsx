@@ -70,6 +70,7 @@ export default function App() {
       .select()
     if (error) throw error
     setContacts((prev) => [...prev, data[0]])
+    return data[0]
   }
 
   async function handleUpdateContact(id, patch) {

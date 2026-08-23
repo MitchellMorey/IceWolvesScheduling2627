@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { SCHEDULED_OPTIONS } from '../constants'
 
-function ContactRow({ contact, onUpdate, onDelete }) {
+function ContactRow({ contact, onUpdate, onDelete, autoEdit }) {
+  const [editing, setEditing] = useState(autoEdit)
   const [club, setClub] = useState(contact.club)
   const [contactName, setContactName] = useState(contact.contact)
   const [email, setEmail] = useState(contact.email)
@@ -13,6 +14,14 @@ function ContactRow({ contact, onUpdate, onDelete }) {
   const commit = (field, value, original) => {
     if (value === original) return
     onUpdate(contact.id, { [field]: value })
+  }
+
+  const startEditing = () => {
+    // Re-sync from the current row in case it changed since last edit.
+    setClub(contact.club)
+    setContactName(contact.contact)
+    setEmail(contact.email)
+    setEditing(true)
   }
 
   const handleDelete = async () => {
@@ -29,49 +38,83 @@ function ContactRow({ contact, onUpdate, onDelete }) {
   return (
     <tr>
       <td>
-        <input
-          type="text"
-          value={club}
-          onChange={(e) => setClub(e.target.value)}
-          onBlur={() => commit('club', club, contact.club)}
-          placeholder="Club name"
-          disabled={deleting}
-        />
+        {editing ? (
+          <input
+            type="text"
+            value={club}
+            onChange={(e) => setClub(e.target.value)}
+            onBlur={() => commit('club', club, contact.club)}
+            placeholder="Club name"
+            disabled={deleting}
+            autoFocus
+          />
+        ) : (
+          <span className="contacts-view-text">{contact.club || '—'}</span>
+        )}
       </td>
       <td>
-        <input
-          type="text"
-          value={contactName}
-          onChange={(e) => setContactName(e.target.value)}
-          onBlur={() => commit('contact', contactName, contact.contact)}
-          placeholder="Contact name"
-          disabled={deleting}
-        />
+        {editing ? (
+          <input
+            type="text"
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            onBlur={() => commit('contact', contactName, contact.contact)}
+            placeholder="Contact name"
+            disabled={deleting}
+          />
+        ) : (
+          <span className="contacts-view-text">{contact.contact || '—'}</span>
+        )}
       </td>
       <td>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onBlur={() => commit('email', email, contact.email)}
-          placeholder="Email"
-          disabled={deleting}
-        />
+        {editing ? (
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => commit('email', email, contact.email)}
+            placeholder="Email"
+            disabled={deleting}
+          />
+        ) : (
+          <span className="contacts-view-text">{contact.email || '—'}</span>
+        )}
       </td>
       <td>
-        <select
-          value={contact.scheduled}
-          onChange={(e) => onUpdate(contact.id, { scheduled: e.target.value })}
+        {editing ? (
+          <select
+            value={contact.scheduled}
+            onChange={(e) => onUpdate(contact.id, { scheduled: e.target.value })}
+            disabled={deleting}
+          >
+            {SCHEDULED_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        ) : (
+          <span className="contacts-view-text">{contact.scheduled}</span>
+        )}
+      </td>
+      <td className="contacts-actions-cell">
+        <button
+          type="button"
+          className="contacts-icon-btn"
+          onClick={() => (editing ? setEditing(false) : startEditing())}
           disabled={deleting}
+          title={editing ? 'Done editing' : 'Edit this contact'}
+          aria-label={editing ? 'Done editing' : 'Edit this contact'}
         >
-          {SCHEDULED_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
-      </td>
-      <td className="contacts-delete-cell">
-        <button type="button" className="btn-delete" onClick={handleDelete} disabled={deleting}>
-          Delete
+          {editing ? '✓' : '✎'}
+        </button>
+        <button
+          type="button"
+          className="contacts-icon-btn contacts-icon-btn-delete"
+          onClick={handleDelete}
+          disabled={deleting}
+          title="Remove this contact"
+          aria-label="Remove this contact"
+        >
+          ✕
         </button>
       </td>
     </tr>
@@ -81,12 +124,14 @@ function ContactRow({ contact, onUpdate, onDelete }) {
 export default function OpponentContactsModal({ team, contacts, onAddContact, onUpdateContact, onDeleteContact, onClose }) {
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
+  const [newlyAddedId, setNewlyAddedId] = useState(null)
 
   const handleAdd = async () => {
     setAdding(true)
     setError('')
     try {
-      await onAddContact(team)
+      const created = await onAddContact(team)
+      if (created) setNewlyAddedId(created.id)
     } catch (err) {
       setError(err.message || 'Could not add a contact.')
     } finally {
@@ -122,6 +167,7 @@ export default function OpponentContactsModal({ team, contacts, onAddContact, on
                     contact={contact}
                     onUpdate={onUpdateContact}
                     onDelete={onDeleteContact}
+                    autoEdit={contact.id === newlyAddedId}
                   />
                 ))}
               </tbody>
