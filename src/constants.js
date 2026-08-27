@@ -29,6 +29,21 @@ export const TEAM_DURATION_MINUTES = {
 
 export const MIN_GAP_MINUTES = 15
 
+// Which team's ice time actually governs a slot's duration: its own team
+// if it's held by a real team, or whichever team's-worth of ice it was
+// set up to hold if it's currently marked "Open" (an Open slot itself
+// has no game happening, but still needs a duration so the calendar and
+// conflict checks know how much ice it occupies until something claims
+// or overrides it).
+export function durationTeamFor(ev) {
+  return ev.team === OPEN_TEAM ? ev.original_team : ev.team
+}
+
+export function durationMinutesFor(ev) {
+  const team = durationTeamFor(ev)
+  return team ? TEAM_DURATION_MINUTES[team] : undefined
+}
+
 // Status options for an opponent contact's "Scheduled" field.
 export const SCHEDULED_OPTIONS = ['Yes', 'No', 'Contact Made']
 

@@ -1,5 +1,5 @@
-import { WEEKDAYS, OPEN_TEAM, ENTRY_KIND } from '../constants'
-import { buildMonthGrid, todayKey, formatTime12h } from '../dateUtils'
+import { WEEKDAYS, OPEN_TEAM, ENTRY_KIND, TEAM_DURATION_MINUTES, durationMinutesFor } from '../constants'
+import { buildMonthGrid, todayKey, formatTime12h, timeToMinutes } from '../dateUtils'
 
 // Column 0/6 (Sun/Sat) are always wider. Columns 1-5 (Mon-Fri) start
 // narrow and individually expand to match the weekend width if that
@@ -102,6 +102,31 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
               return alloc.time >= t.time && alloc.time < t.end_time
             })
             return !coveredByOnIce
+          })
+
+          // An "Open" allocation isn't held by anyone, so any home game
+          // that overlaps its time window (using the team-based duration
+          // it was set up with) simply overrides and hides it - unlike a
+          // real team's slot, which blocks the save with a conflict error
+          // instead (see App.jsx's findTimeConflict). Games narrower than
+          // the open window only cover part of it, so only the open slots
+          // that actually overlap the new game disappear - the other one
+          // (if any) stays.
+          openAllocations = openAllocations.filter((alloc) => {
+            if (alloc.team !== OPEN_TEAM) return true
+            const allocDuration = durationMinutesFor(alloc)
+            const allocStart = timeToMinutes(alloc.time)
+            if (!allocDuration || allocStart == null) return true
+            const allocEnd = allocStart + allocDuration
+            const overriddenByGame = games.some((g) => {
+              if (g.location && g.location !== 'home') return false
+              const gStart = timeToMinutes(g.time)
+              if (gStart == null) return false
+              const gDuration = TEAM_DURATION_MINUTES[g.team] || 0
+              const gEnd = gStart + gDuration
+              return gStart < allocEnd && allocStart < gEnd
+            })
+            return !overriddenByGame
           })
 
           const rinkEventChips = [

@@ -7,7 +7,17 @@ import AvailableSlotsModal from './components/AvailableSlotsModal'
 import OpponentContactsModal from './components/OpponentContactsModal'
 import LoginControl from './components/LoginControl'
 import { useAuth } from './useAuth'
-import { TEAMS, REAL_TEAMS, AVAILABILITY_TEAMS, OPEN_TEAM, ENTRY_KIND, TEAM_DURATION_MINUTES, MIN_GAP_MINUTES } from './constants'
+import {
+  TEAMS,
+  REAL_TEAMS,
+  AVAILABILITY_TEAMS,
+  OPEN_TEAM,
+  ENTRY_KIND,
+  TEAM_DURATION_MINUTES,
+  MIN_GAP_MINUTES,
+  durationTeamFor,
+  durationMinutesFor,
+} from './constants'
 import {
   MONTH_NAMES,
   SEASON_MONTHS,
@@ -105,27 +115,16 @@ export default function App() {
     setLoading(false)
   }
 
-  // Which team's ice time actually governs a slot's duration: its own
-  // team if it's held by a real team, or whichever team originally held
-  // it if it's currently marked "Open" (an Open slot itself has no game
-  // happening, so it can't be the thing causing a spacing conflict, but
-  // we still need to know its duration to judge gaps around it).
-  function durationTeamFor(ev) {
-    return ev.team === OPEN_TEAM ? ev.original_team : ev.team
-  }
-
-  function durationMinutesFor(ev) {
-    const team = durationTeamFor(ev)
-    return team ? TEAM_DURATION_MINUTES[team] : undefined
-  }
-
   // Checks a proposed game/allocation (team + date + time) against every
   // other home ice slot on the same date, using each team's fixed
   // duration, and flags anything that would overlap or leave less than
   // MIN_GAP_MINUTES between them. Slots that start at the exact same
   // time are assumed to be intentionally sharing the ice (e.g. Squirt
   // and She Wolves splitting a session) and are never flagged against
-  // each other.
+  // each other. Slots currently marked "Open" are never blockers here -
+  // Open ice is free for anyone to claim, so a new game just overrides
+  // it (see the calendar's own Open-slot suppression) instead of
+  // bouncing the save with an error.
   function findTimeConflict(form, excludeId) {
     if (form.kind !== ENTRY_KIND.ALLOCATION && form.kind !== ENTRY_KIND.GAME) return []
     if (form.team === OPEN_TEAM) return [] // freeing up ice can't create a conflict
@@ -140,7 +139,7 @@ export default function App() {
       if (ev.date !== form.date) return false
       if (ev.kind !== ENTRY_KIND.ALLOCATION && ev.kind !== ENTRY_KIND.GAME) return false
       if (ev.location && ev.location !== 'home') return false
-      if (ev.team === OPEN_TEAM && !ev.original_team) return false
+      if (ev.team === OPEN_TEAM) return false
       if (ev.time === form.time) return false // same start time = intentional shared ice
 
       const otherDuration = durationMinutesFor(ev)
