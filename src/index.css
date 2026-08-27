@@ -26,8 +26,6 @@
   --team-squirt-soft: #E8EAF6;
   --team-shewolves: #0288D1;
   --team-shewolves-soft: #E1F5FE;
-  --team-highschool: #6A1B9A;
-  --team-highschool-soft: #F3E5F5;
   /* 8U and 6U share an orange family (distinct from every other team's
      color) - 8U gets the darker shade, 6U the lighter one. */
   --team-8u: #E65100;
@@ -484,11 +482,6 @@ button {
   background: var(--team-shewolves);
 }
 
-.rink-event-chip[data-kind="tournament"][data-team="High School"] {
-  border-color: var(--team-highschool);
-  background: var(--team-highschool);
-}
-
 .rink-event-chip[data-kind="tournament"][data-team="8U"] {
   border-color: var(--team-8u);
   background: var(--team-8u);
@@ -572,11 +565,6 @@ button {
 .event-chip[data-team="She Wolves"] {
   border-left-color: var(--team-shewolves);
   background: var(--team-shewolves-soft);
-}
-
-.event-chip[data-team="High School"] {
-  border-left-color: var(--team-highschool);
-  background: var(--team-highschool-soft);
 }
 
 .event-chip[data-team="8U"] {
@@ -858,7 +846,6 @@ button {
 .legend i.team-swatch-peewee { background: var(--team-peewee); }
 .legend i.team-swatch-squirt { background: var(--team-squirt); }
 .legend i.team-swatch-shewolves { background: var(--team-shewolves); }
-.legend i.team-swatch-highschool { background: var(--team-highschool); }
 .legend i.team-swatch-8u { background: var(--team-8u); }
 .legend i.team-swatch-6u { background: var(--team-6u); }
 
