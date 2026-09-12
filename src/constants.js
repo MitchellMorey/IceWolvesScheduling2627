@@ -30,16 +30,22 @@ export const TEAM_DURATION_MINUTES = {
 export const MIN_GAP_MINUTES = 15
 
 // Which team's ice time actually governs a slot's duration: its own team
-// if it's held by a real team, or whichever team's-worth of ice it was
-// set up to hold if it's currently marked "Open" (an Open slot itself
-// has no game happening, but still needs a duration so the calendar and
-// conflict checks know how much ice it occupies until something claims
-// or overrides it).
+// if it's held by a real team, or whichever team originally held it if
+// it's currently marked "Open" because that team gave up their slot
+// (e.g. a deliberate day off) - NOT for a slot that was Open from the
+// moment it was created (a standing open-ice hold), which has no real
+// "original" team at all. Use durationMinutesFor for the actual number.
 export function durationTeamFor(ev) {
   return ev.team === OPEN_TEAM ? ev.original_team : ev.team
 }
 
 export function durationMinutesFor(ev) {
+  // A slot can carry an explicit duration_minutes (used for standing
+  // open-ice holds that were never any one team's slot to begin with -
+  // they just need SOME duration for override/conflict math, without
+  // that borrowed duration being mistaken for team ownership elsewhere,
+  // e.g. a team's "Available to Travel" list).
+  if (ev.duration_minutes) return ev.duration_minutes
   const team = durationTeamFor(ev)
   return team ? TEAM_DURATION_MINUTES[team] : undefined
 }
