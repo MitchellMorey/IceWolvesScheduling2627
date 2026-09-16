@@ -68,7 +68,14 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
           // A game "fills" the allocation that owns its slot when they share
           // the same team and time - once that happens, the allocation
           // marker drops off the calendar since the game chip now covers it.
-          const filledKeys = new Set(games.map((ev) => `${ev.team}|${ev.time || ''}`))
+          // Only a home game can fill it, though - an away game doesn't use
+          // this rink's ice, so it shouldn't hide the home slot's own
+          // allocation chip (which still needs to stay clickable so it can
+          // be reassigned to Open if that ice time isn't being used after
+          // all).
+          const filledKeys = new Set(
+            games.filter((ev) => ev.location === 'home').map((ev) => `${ev.team}|${ev.time || ''}`)
+          )
           let openAllocations = dayEntries.filter(
             (ev) => ev.kind === ENTRY_KIND.ALLOCATION && !filledKeys.has(`${ev.team}|${ev.time || ''}`)
           )
