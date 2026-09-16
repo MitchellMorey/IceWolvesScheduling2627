@@ -154,6 +154,22 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
             group.allocations.push(ev)
           })
 
+          // Everything using this rink's own ice - both open/unfilled slots
+          // and filled home games - lives together in one chronological
+          // list, so the box reads top-to-bottom as "what's happening on
+          // our ice today." Away games (this team's travel) get their own
+          // chronological list below, since they don't compete for this
+          // rink's time.
+          const homeRowItems = [
+            ...groupsByTime.map((group) => ({ kind: 'alloc', time: group.time, group })),
+            ...games
+              .filter((ev) => ev.location !== 'away')
+              .map((ev) => ({ kind: 'game', time: ev.time || '', game: ev })),
+          ].sort((a, b) => a.time.localeCompare(b.time))
+          const awayGames = games
+            .filter((ev) => ev.location === 'away')
+            .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+
           return (
             <div
               key={cell.dateKey}
@@ -191,27 +207,48 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
                 </div>
               )}
 
-              {groupsByTime.length > 0 && (
+              {homeRowItems.length > 0 && (
                 <div className="day-allocations">
-                  {groupsByTime.map((group) => {
-                    const isSingle = group.allocations.length === 1
-                    const label = group.allocations.map((a) => a.team).join(' / ')
-                    const isOpen = group.allocations.some((a) => a.team === OPEN_TEAM)
+                  {homeRowItems.map((item) => {
+                    if (item.kind === 'alloc') {
+                      const group = item.group
+                      const isSingle = group.allocations.length === 1
+                      const label = group.allocations.map((a) => a.team).join(' / ')
+                      const isOpen = group.allocations.some((a) => a.team === OPEN_TEAM)
+                      return (
+                        <button
+                          key={`alloc-${group.time || 'no-time'}`}
+                          className="allocation-chip"
+                          data-open={isOpen}
+                          onClick={() =>
+                            isSingle ? onEventClick(group.allocations[0]) : onGroupClick(group.allocations)
+                          }
+                          title={
+                            isSingle
+                              ? `${label} slot${group.time ? ` @ ${formatTime12h(group.time)}` : ''} - click to fill in a game or reassign`
+                              : `${label} share this slot${group.time ? ` @ ${formatTime12h(group.time)}` : ''} - click to fill in a game or reassign either team`
+                          }
+                        >
+                          {group.time ? formatTime12h(group.time) : ''} {label}
+                        </button>
+                      )
+                    }
+                    const ev = item.game
+                    const isOpen = ev.team === OPEN_TEAM
                     return (
                       <button
-                        key={group.time || 'no-time'}
-                        className="allocation-chip"
+                        key={ev.id}
+                        className="event-chip"
+                        data-loc={ev.location}
+                        data-team={ev.team}
                         data-open={isOpen}
-                        onClick={() =>
-                          isSingle ? onEventClick(group.allocations[0]) : onGroupClick(group.allocations)
-                        }
-                        title={
-                          isSingle
-                            ? `${label} slot${group.time ? ` @ ${formatTime12h(group.time)}` : ''} - click to fill in a game or reassign`
-                            : `${label} share this slot${group.time ? ` @ ${formatTime12h(group.time)}` : ''} - click to fill in a game or reassign either team`
-                        }
+                        onClick={() => onEventClick(ev)}
+                        title={isOpen ? 'Open ice - not yet assigned' : `${ev.team} · ${ev.event_type}`}
                       >
-                        {group.time ? formatTime12h(group.time) : ''} {label}
+                        <strong>{ev.time ? formatTime12h(ev.time) : ''} {ev.team}</strong>
+                        {isOpen
+                          ? 'Open · tap to assign'
+                          : `${ev.event_type}${ev.opponent ? ` vs ${ev.opponent}` : ''}`}
                       </button>
                     )
                   })}
@@ -219,27 +256,19 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
               )}
 
               <div className="day-events">
-                {games.map((ev) => {
-                  const isOpen = ev.team === OPEN_TEAM
-                  return (
-                    <button
-                      key={ev.id}
-                      className="event-chip"
-                      data-loc={ev.location}
-                      data-team={ev.team}
-                      data-open={isOpen}
-                      onClick={() => onEventClick(ev)}
-                      title={isOpen ? 'Open ice - not yet assigned' : `${ev.team} · ${ev.event_type}`}
-                    >
-                      <strong>{ev.time ? formatTime12h(ev.time) : ''} {ev.team}</strong>
-                      {isOpen
-                        ? 'Open · tap to assign'
-                        : `${ev.event_type}${
-                            ev.opponent ? ` ${ev.location === 'home' ? 'vs' : '@'} ${ev.opponent}` : ''
-                          }`}
-                    </button>
-                  )
-                })}
+                {awayGames.map((ev) => (
+                  <button
+                    key={ev.id}
+                    className="event-chip"
+                    data-loc={ev.location}
+                    data-team={ev.team}
+                    onClick={() => onEventClick(ev)}
+                    title={`${ev.team} · ${ev.event_type}`}
+                  >
+                    <strong>{ev.time ? formatTime12h(ev.time) : ''} {ev.team}</strong>
+                    {`${ev.event_type}${ev.opponent ? ` @ ${ev.opponent}` : ''}`}
+                  </button>
+                ))}
               </div>
               {isEditor && (
                 <button className="day-add" onClick={() => onDayClick(cell.dateKey)}>
