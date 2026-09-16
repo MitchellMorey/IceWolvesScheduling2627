@@ -232,7 +232,11 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
                       title={isOpen ? 'Open ice - not yet assigned' : `${ev.team} · ${ev.event_type}`}
                     >
                       <strong>{ev.time ? formatTime12h(ev.time) : ''} {ev.team}</strong>
-                      {isOpen ? 'Open · tap to assign' : `${ev.event_type}${ev.opponent ? ` vs ${ev.opponent}` : ''}`}
+                      {isOpen
+                        ? 'Open · tap to assign'
+                        : `${ev.event_type}${
+                            ev.opponent ? ` ${ev.location === 'home' ? 'vs' : '@'} ${ev.opponent}` : ''
+                          }`}
                     </button>
                   )
                 })}
