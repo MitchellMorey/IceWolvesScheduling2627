@@ -376,6 +376,14 @@ export default function App() {
       (ev) => ev.kind === ENTRY_KIND.TOURNAMENT && ev.team === team
     )
 
+    // Manually-declared travel blocks (see ENTRY_KIND.TRAVEL_BLOCK) - a date
+    // range that's off the table for travel, either for this specific team
+    // or for every team at once (team left null). These have no effect on
+    // the calendar or anyone's home ice; they only remove dates here.
+    const teamTravelBlocks = events.filter(
+      (ev) => ev.kind === ENTRY_KIND.TRAVEL_BLOCK && (!ev.team || ev.team === team)
+    )
+
     // Dates where this team's own held slot was deliberately marked
     // "Open" (not just left unfilled) - treated as an intentional day
     // off, not a travel opportunity, even though no game is scheduled.
@@ -396,7 +404,11 @@ export default function App() {
       const coveredByTournament = teamTournaments.some(
         (t) => dateKey >= t.date && dateKey <= (t.end_date || t.date)
       )
-      return !coveredByTournament
+      if (coveredByTournament) return false
+      const coveredByTravelBlock = teamTravelBlocks.some(
+        (t) => dateKey >= t.date && dateKey <= (t.end_date || t.date)
+      )
+      return !coveredByTravelBlock
     })
   }
 

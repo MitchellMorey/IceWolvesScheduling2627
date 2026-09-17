@@ -67,11 +67,16 @@ export const EVENT_TYPES = ['Game', 'Practice', 'Tournament', 'Open Skate', 'Oth
 // - 'on_ice_event': a rink-wide event on one date with a specific start/end
 //   time, which supersedes any team's individual ice-slot allocations that
 //   fall within that time range.
+// - 'travel_block': a date range that's off the table for travel - it only
+//   affects the Available to Travel list (for one team, if `team` is set,
+//   or every team if `team` is null) and has no effect at all on the
+//   calendar or anyone's home ice slots.
 export const ENTRY_KIND = {
   ALLOCATION: 'allocation',
   GAME: 'game',
   TOURNAMENT: 'tournament',
   ON_ICE_EVENT: 'on_ice_event',
+  TRAVEL_BLOCK: 'travel_block',
 }
 
 export const RINK_EVENT_KINDS = [ENTRY_KIND.TOURNAMENT, ENTRY_KIND.ON_ICE_EVENT]

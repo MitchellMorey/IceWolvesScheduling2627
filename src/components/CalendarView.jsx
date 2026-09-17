@@ -19,7 +19,14 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
   const onIceEvents = events.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
 
   const eventsByDay = events.reduce((acc, ev) => {
-    if (ev.kind === ENTRY_KIND.TOURNAMENT || ev.kind === ENTRY_KIND.ON_ICE_EVENT) return acc
+    // Travel blocks only affect the Available to Travel list (computed
+    // separately in App.jsx) - they never show up on the calendar itself.
+    if (
+      ev.kind === ENTRY_KIND.TOURNAMENT ||
+      ev.kind === ENTRY_KIND.ON_ICE_EVENT ||
+      ev.kind === ENTRY_KIND.TRAVEL_BLOCK
+    )
+      return acc
     if (!acc[ev.date]) acc[ev.date] = []
     acc[ev.date].push(ev)
     return acc
