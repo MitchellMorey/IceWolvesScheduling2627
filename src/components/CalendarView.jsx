@@ -25,7 +25,14 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
   // Tournaments/on-ice events aren't day-bucketed like everything else -
   // a tournament can span several days, so they're checked per-cell against
   // their own date range below instead of via eventsByDay.
+  //
+  // A team's tournament still needs its own chip hidden when that team is
+  // filtered out, though - suppressing other teams' slots is one thing,
+  // but the tournament badge itself shouldn't ignore the team filter. So
+  // tournaments are tracked two ways: the full unfiltered set (for
+  // suppression) and the team-filtered set (for what actually renders).
   const tournaments = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
+  const visibleTournaments = events.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
   const onIceEvents = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
 
   const eventsByDay = events.reduce((acc, ev) => {
@@ -105,6 +112,11 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           const tournamentsForDay = tournaments.filter(
             (t) => cell.dateKey >= t.date && cell.dateKey <= (t.end_date || t.date)
           )
+          // Same date-range check, but against only the team-filtered
+          // tournaments - this is what actually gets a chip drawn for it.
+          const visibleTournamentsForDay = visibleTournaments.filter(
+            (t) => cell.dateKey >= t.date && cell.dateKey <= (t.end_date || t.date)
+          )
           const onIceForDay = onIceEvents.filter((t) => t.date === cell.dateKey)
 
           openAllocations = openAllocations.filter((alloc) => {
@@ -160,7 +172,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           })
 
           const rinkEventChips = [
-            ...tournamentsForDay.map((ev) => ({ ...ev, chipKind: ENTRY_KIND.TOURNAMENT })),
+            ...visibleTournamentsForDay.map((ev) => ({ ...ev, chipKind: ENTRY_KIND.TOURNAMENT })),
             ...onIceForDay.map((ev) => ({ ...ev, chipKind: ENTRY_KIND.ON_ICE_EVENT })),
           ]
 
