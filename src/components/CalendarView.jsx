@@ -8,15 +8,25 @@ const WEEKEND_WIDTH = '1.25fr'
 const WEEKDAY_NARROW = '0.8fr'
 const WEEKDAY_EXPANDED = '1.15fr'
 
-export default function CalendarView({ year, month, events, isEditor, onDayClick, onEventClick, onGroupClick, onRinkEventClick }) {
+export default function CalendarView({ year, month, events, allEvents, isEditor, onDayClick, onEventClick, onGroupClick, onRinkEventClick }) {
   const cells = buildMonthGrid(year, month)
   const today = todayKey()
+
+  // Whether an open slot should actually be suppressed (by a tournament, an
+  // on-ice event, or an overlapping game) shouldn't depend on whether the
+  // team causing that conflict happens to be toggled visible right now -
+  // hiding a team's tournament shouldn't make another team's slot look
+  // open again. So all the suppression logic below is computed from the
+  // full, unfiltered event list (allEvents), while `events` (already
+  // filtered to the active teams) still governs what actually gets
+  // rendered as a chip.
+  const suppressionSource = allEvents || events
 
   // Tournaments/on-ice events aren't day-bucketed like everything else -
   // a tournament can span several days, so they're checked per-cell against
   // their own date range below instead of via eventsByDay.
-  const tournaments = events.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
-  const onIceEvents = events.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
+  const tournaments = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
+  const onIceEvents = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
 
   const eventsByDay = events.reduce((acc, ev) => {
     // Travel blocks only affect the Available to Travel list (computed
@@ -125,15 +135,21 @@ export default function CalendarView({ year, month, events, isEditor, onDayClick
           // instead (see App.jsx's findTimeConflict). Games narrower than
           // the open window only cover part of it, so only the open slots
           // that actually overlap the new game disappear - the other one
-          // (if any) stays.
+          // (if any) stays. This checks against every home game that day
+          // regardless of team filters, for the same reason described above.
+          const allHomeGamesForDay = suppressionSource.filter(
+            (ev) =>
+              ev.date === cell.dateKey &&
+              ev.kind !== ENTRY_KIND.ALLOCATION &&
+              (!ev.location || ev.location === 'home')
+          )
           openAllocations = openAllocations.filter((alloc) => {
             if (alloc.team !== OPEN_TEAM) return true
             const allocDuration = durationMinutesFor(alloc)
             const allocStart = timeToMinutes(alloc.time)
             if (!allocDuration || allocStart == null) return true
             const allocEnd = allocStart + allocDuration
-            const overriddenByGame = games.some((g) => {
-              if (g.location && g.location !== 'home') return false
+            const overriddenByGame = allHomeGamesForDay.some((g) => {
               const gStart = timeToMinutes(g.time)
               if (gStart == null) return false
               const gDuration = TEAM_DURATION_MINUTES[g.team] || 0

@@ -625,6 +625,7 @@ export default function App() {
           year={year}
           month={month}
           events={visibleEvents}
+          allEvents={events}
           isEditor={isEditor}
           onDayClick={(dateKey) => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME, defaultDate: dateKey })}
           onEventClick={(ev) => setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })}
