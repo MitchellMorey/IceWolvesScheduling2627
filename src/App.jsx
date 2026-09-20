@@ -171,9 +171,17 @@ export default function App() {
     throwIfTimeConflict(form, existingId)
 
     if (existingId) {
+      // A slot can carry an explicit duration_minutes (see constants.js) -
+      // normally only used by a standing Open ice hold that was never any
+      // one team's slot. If this update claims that slot for a real team,
+      // that borrowed duration needs to be cleared out, or the new team
+      // would incorrectly keep running with someone else's ice time (e.g.
+      // still measuring as a 90-minute Bantam slot after being reassigned
+      // to a team whose games are only an hour long).
+      const payload = form.team !== OPEN_TEAM ? { ...form, duration_minutes: null } : form
       const { data, error } = await supabase
         .from('events')
-        .update(form)
+        .update(payload)
         .eq('id', existingId)
         .select()
       if (error) throw error
@@ -207,7 +215,10 @@ export default function App() {
     if (existing && team !== OPEN_TEAM) {
       throwIfTimeConflict({ ...existing, team }, id)
     }
-    const { data, error } = await supabase.from('events').update({ team }).eq('id', id).select()
+    // Same borrowed-duration cleanup as handleSave above - clear it out
+    // whenever this slot is being claimed by a real team.
+    const payload = team !== OPEN_TEAM ? { team, duration_minutes: null } : { team }
+    const { data, error } = await supabase.from('events').update(payload).eq('id', id).select()
     if (error) throw error
     setEvents((prev) => prev.map((ev) => (ev.id === id ? data[0] : ev)))
     return data[0]
