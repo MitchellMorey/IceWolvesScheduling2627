@@ -13,10 +13,24 @@ const emptyForm = (dateKey, kind, prefillTeam, prefillTime) => ({
   kind,
 })
 
-function GroupAllocationRow({ allocation, onReassignRow, onDeleteRow, onFillGame, onRowRemoved }) {
+function GroupAllocationRow({ allocation, onReassignRow, onUpdateRow, onDeleteRow, onFillGame, onRowRemoved }) {
   const [team, setTeam] = useState(allocation.team)
+  const [date, setDate] = useState(allocation.date)
+  const [time, setTime] = useState(allocation.time || '')
+  // Tracked separately from the allocation prop (which is a frozen
+  // snapshot from when the modal opened) so the Save button's dirty
+  // check clears itself right after a successful save, instead of
+  // staying stuck comparing against the stale original value.
+  const [savedDate, setSavedDate] = useState(allocation.date)
+  const [savedTime, setSavedTime] = useState(allocation.time || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Team still reassigns instantly on change, same as before. Date/time
+  // are staged locally and applied with the Save button once you've
+  // picked what you want - the same as editing a solo slot, which this
+  // row otherwise couldn't do.
+  const dateTimeDirty = date !== savedDate || time !== savedTime
 
   const handleReassign = async (e) => {
     const nextTeam = e.target.value
@@ -27,6 +41,20 @@ function GroupAllocationRow({ allocation, onReassignRow, onDeleteRow, onFillGame
       await onReassignRow(allocation.id, nextTeam)
     } catch (err) {
       setError(err.message || 'Could not reassign this slot.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveDateTime = async () => {
+    setSaving(true)
+    setError('')
+    try {
+      await onUpdateRow(allocation.id, { date, time })
+      setSavedDate(date)
+      setSavedTime(time)
+    } catch (err) {
+      setError(err.message || 'Could not update this slot.')
     } finally {
       setSaving(false)
     }
@@ -51,10 +79,29 @@ function GroupAllocationRow({ allocation, onReassignRow, onDeleteRow, onFillGame
           <option key={t} value={t}>{t}</option>
         ))}
       </select>
+      <input
+        type="date"
+        className="group-row-date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        disabled={saving}
+      />
+      <input
+        type="time"
+        className="group-row-time"
+        value={time}
+        onChange={(e) => setTime(e.target.value)}
+        disabled={saving}
+      />
+      {dateTimeDirty && (
+        <button type="button" className="btn-primary btn-fill-game-compact" onClick={handleSaveDateTime} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      )}
       <button
         type="button"
         className="btn-fill-game btn-fill-game-compact"
-        onClick={() => onFillGame({ team, date: allocation.date, time: allocation.time })}
+        onClick={() => onFillGame({ team, date, time })}
         disabled={saving}
       >
         + Fill In Game
@@ -67,7 +114,7 @@ function GroupAllocationRow({ allocation, onReassignRow, onDeleteRow, onFillGame
   )
 }
 
-function GroupAllocationModal({ group, readOnly, onClose, onReassignRow, onDeleteRow, onFillGame }) {
+function GroupAllocationModal({ group, readOnly, onClose, onReassignRow, onUpdateRow, onDeleteRow, onFillGame }) {
   const [rows, setRows] = useState(group)
   const time = rows[0]?.time
   const date = rows[0]?.date
@@ -83,7 +130,7 @@ function GroupAllocationModal({ group, readOnly, onClose, onReassignRow, onDelet
         <p className="modal-hint">
           {readOnly
             ? 'These teams share this ice time.'
-            : "These teams share this ice time. Reassign a team, remove its hold, or fill in a game for whichever team is actually playing - the other team's hold stays as-is."}
+            : "These teams share this ice time. Reassign a team, change its date/time (then hit Save), remove its hold, or fill in a game for whichever team is actually playing - the other team's hold stays as-is."}
         </p>
 
         {rows.length === 0 && <p>No teams left holding this slot.</p>}
@@ -99,6 +146,7 @@ function GroupAllocationModal({ group, readOnly, onClose, onReassignRow, onDelet
                 key={allocation.id}
                 allocation={allocation}
                 onReassignRow={onReassignRow}
+                onUpdateRow={onUpdateRow}
                 onDeleteRow={onDeleteRow}
                 onFillGame={onFillGame}
                 onRowRemoved={handleRowRemoved}
@@ -128,6 +176,7 @@ export default function EventModal({
   onSave,
   onDelete,
   onReassignRow,
+  onUpdateRow,
   onDeleteRow,
   onFillGame,
 }) {
@@ -155,6 +204,7 @@ export default function EventModal({
         readOnly={readOnly}
         onClose={onClose}
         onReassignRow={onReassignRow}
+        onUpdateRow={onUpdateRow}
         onDeleteRow={onDeleteRow}
         onFillGame={onFillGame}
       />

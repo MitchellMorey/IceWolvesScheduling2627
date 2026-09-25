@@ -687,6 +687,19 @@ button {
   background: white;
 }
 
+.group-row-date,
+.group-row-time {
+  flex: 1;
+  min-width: 120px;
+  border: 2px solid var(--ice-line);
+  border-radius: 7px;
+  padding: 7px 8px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: white;
+}
+
 .btn-fill-game-compact {
   width: auto;
   margin-bottom: 0;

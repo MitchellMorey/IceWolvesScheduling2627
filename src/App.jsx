@@ -208,20 +208,27 @@ export default function App() {
   }
 
   // Row-level versions used inside the grouped-allocation modal, where
-  // reassigning or deleting one row shouldn't close the whole modal - the
-  // other team's slot in the group may still need attention.
-  async function handleReassignRow(id, team) {
+  // updating or deleting one row shouldn't close the whole modal - the
+  // other team's slot in the group may still need attention. Handles any
+  // combination of team/date/time changes (a shared slot needs to support
+  // the same date/time edits a solo slot gets, not just reassigning team).
+  async function handleUpdateRow(id, updates) {
     const existing = events.find((ev) => ev.id === id)
-    if (existing && team !== OPEN_TEAM) {
-      throwIfTimeConflict({ ...existing, team }, id)
+    const nextTeam = 'team' in updates ? updates.team : existing?.team
+    if (existing && nextTeam !== OPEN_TEAM) {
+      throwIfTimeConflict({ ...existing, ...updates, team: nextTeam }, id)
     }
     // Same borrowed-duration cleanup as handleSave above - clear it out
-    // whenever this slot is being claimed by a real team.
-    const payload = team !== OPEN_TEAM ? { team, duration_minutes: null } : { team }
+    // whenever this slot is (or remains) claimed by a real team.
+    const payload = nextTeam !== OPEN_TEAM ? { ...updates, duration_minutes: null } : updates
     const { data, error } = await supabase.from('events').update(payload).eq('id', id).select()
     if (error) throw error
     setEvents((prev) => prev.map((ev) => (ev.id === id ? data[0] : ev)))
     return data[0]
+  }
+
+  async function handleReassignRow(id, team) {
+    return handleUpdateRow(id, { team })
   }
 
   async function handleDeleteRow(id) {
@@ -695,6 +702,7 @@ export default function App() {
           onSave={handleSave}
           onDelete={handleDelete}
           onReassignRow={handleReassignRow}
+          onUpdateRow={handleUpdateRow}
           onDeleteRow={handleDeleteRow}
           onFillGame={({ team, date, time }) =>
             setModalState({
