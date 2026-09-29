@@ -13,7 +13,7 @@ const emptyForm = (dateKey, kind, prefillTeam, prefillTime) => ({
   kind,
 })
 
-function GroupAllocationRow({ allocation, onReassignRow, onUpdateRow, onDeleteRow, onFillGame, onRowRemoved }) {
+function GroupAllocationRow({ allocation, siblingIds, onReassignRow, onUpdateRow, onDeleteRow, onFillGame, onRowRemoved }) {
   const [team, setTeam] = useState(allocation.team)
   const [date, setDate] = useState(allocation.date)
   const [time, setTime] = useState(allocation.time || '')
@@ -50,7 +50,7 @@ function GroupAllocationRow({ allocation, onReassignRow, onUpdateRow, onDeleteRo
     setSaving(true)
     setError('')
     try {
-      await onUpdateRow(allocation.id, { date, time })
+      await onUpdateRow(allocation.id, { date, time }, siblingIds)
       setSavedDate(date)
       setSavedTime(time)
     } catch (err) {
@@ -145,6 +145,7 @@ function GroupAllocationModal({ group, readOnly, onClose, onReassignRow, onUpdat
               <GroupAllocationRow
                 key={allocation.id}
                 allocation={allocation}
+                siblingIds={rows.filter((r) => r.id !== allocation.id).map((r) => r.id)}
                 onReassignRow={onReassignRow}
                 onUpdateRow={onUpdateRow}
                 onDeleteRow={onDeleteRow}

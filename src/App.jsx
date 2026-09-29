@@ -134,8 +134,15 @@ export default function App() {
     if (!duration || start == null) return []
     const end = start + duration
 
+    // excludeId can be a single id or an array of ids - a batch of rows
+    // being moved together (e.g. every team in a shared slot's popup)
+    // needs to exclude each other too, not just itself, or they'll
+    // transiently "conflict" with each other mid-move (see excludeIds
+    // usage in handleUpdateRow).
+    const excludeIds = new Set(Array.isArray(excludeId) ? excludeId : [excludeId])
+
     return events.filter((ev) => {
-      if (ev.id === excludeId) return false
+      if (excludeIds.has(ev.id)) return false
       if (ev.date !== form.date) return false
       if (ev.kind !== ENTRY_KIND.ALLOCATION && ev.kind !== ENTRY_KIND.GAME) return false
       if (ev.location && ev.location !== 'home') return false
@@ -212,11 +219,17 @@ export default function App() {
   // other team's slot in the group may still need attention. Handles any
   // combination of team/date/time changes (a shared slot needs to support
   // the same date/time edits a solo slot gets, not just reassigning team).
-  async function handleUpdateRow(id, updates) {
+  //
+  // siblingIds (other rows from the same shared-slot popup) are always
+  // excluded from the conflict check too - those teams were already
+  // sharing this ice intentionally, and if you're moving more than one
+  // of them to a new time together, they shouldn't transiently "conflict"
+  // with each other just because they haven't all saved yet.
+  async function handleUpdateRow(id, updates, siblingIds = []) {
     const existing = events.find((ev) => ev.id === id)
     const nextTeam = 'team' in updates ? updates.team : existing?.team
     if (existing && nextTeam !== OPEN_TEAM) {
-      throwIfTimeConflict({ ...existing, ...updates, team: nextTeam }, id)
+      throwIfTimeConflict({ ...existing, ...updates, team: nextTeam }, [id, ...siblingIds])
     }
     // Same borrowed-duration cleanup as handleSave above - clear it out
     // whenever this slot is (or remains) claimed by a real team.
