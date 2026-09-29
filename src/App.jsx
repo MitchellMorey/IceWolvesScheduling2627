@@ -175,7 +175,29 @@ export default function App() {
   }
 
   async function handleSave(form, existingId) {
-    throwIfTimeConflict(form, existingId)
+    // A filled-in GAME and the ALLOCATION marker it was created from are
+    // separate rows, only linked by having matched on team+date+time at
+    // the moment "Fill In Game" was used (see CalendarView's filledKeys) -
+    // there's no real link between them. So moving an existing game to a
+    // new time leaves its own allocation sitting at the old time,
+    // unfilled again - which then reads as a second, still-too-close
+    // commitment for the same team and throws a conflict against itself.
+    // Find that allocation (by the game's OLD date/time, before this
+    // edit) so it can be excluded from the conflict check and moved along
+    // with the game, the same way the two were created together.
+    const existingGame = existingId ? events.find((ev) => ev.id === existingId) : null
+    const siblingAllocation =
+      existingGame && existingGame.kind === ENTRY_KIND.GAME
+        ? events.find(
+            (ev) =>
+              ev.kind === ENTRY_KIND.ALLOCATION &&
+              ev.team === existingGame.team &&
+              ev.date === existingGame.date &&
+              (ev.time || '') === (existingGame.time || '')
+          )
+        : null
+
+    throwIfTimeConflict(form, siblingAllocation ? [existingId, siblingAllocation.id] : existingId)
 
     if (existingId) {
       // A slot can carry an explicit duration_minutes (see constants.js) -
@@ -193,6 +215,18 @@ export default function App() {
         .select()
       if (error) throw error
       setEvents((prev) => prev.map((ev) => (ev.id === existingId ? data[0] : ev)))
+
+      // Move the game's own allocation along with it, so it doesn't stay
+      // behind as a phantom second hold at the old time.
+      if (siblingAllocation && (form.date !== existingGame.date || form.time !== existingGame.time)) {
+        const { data: allocData, error: allocError } = await supabase
+          .from('events')
+          .update({ date: form.date, time: form.time })
+          .eq('id', siblingAllocation.id)
+          .select()
+        if (allocError) throw allocError
+        setEvents((prev) => prev.map((ev) => (ev.id === siblingAllocation.id ? allocData[0] : ev)))
+      }
     } else {
       // For a brand-new allocation, remember which team it started out
       // belonging to - this survives later reassignment (e.g. to "Open")
