@@ -174,7 +174,24 @@ export default function App() {
     )
   }
 
-  async function handleSave(form, existingId) {
+  async function handleSave(rawForm, existingId) {
+    // An "Open" entry isn't a game - it's just held ice. Saving one as a
+    // game would draw it as a game chip ("Open - tap to assign") with
+    // game fields attached, instead of the plain "TIME Open" marker every
+    // other open slot uses. So any Open entry is always stored as an
+    // allocation, with the game-only fields cleared.
+    const form =
+      rawForm.team === OPEN_TEAM && rawForm.kind === ENTRY_KIND.GAME
+        ? {
+            ...rawForm,
+            kind: ENTRY_KIND.ALLOCATION,
+            event_type: 'Practice',
+            location: 'home',
+            opponent: '',
+            notes: rawForm.notes || '',
+          }
+        : rawForm
+
     // A filled-in GAME and the ALLOCATION marker it was created from are
     // separate rows, only linked by having matched on team+date+time at
     // the moment "Fill In Game" was used (see CalendarView's filledKeys) -
@@ -233,7 +250,9 @@ export default function App() {
       // so the app can tell "this team's day off" apart from "this slot
       // was never held by anyone."
       const payload =
-        form.kind === ENTRY_KIND.ALLOCATION ? { ...form, original_team: form.team } : form
+        form.kind === ENTRY_KIND.ALLOCATION && form.team !== OPEN_TEAM
+          ? { ...form, original_team: form.team }
+          : form
       const { data, error } = await supabase.from('events').insert(payload).select()
       if (error) throw error
       setEvents((prev) => [...prev, data[0]])
