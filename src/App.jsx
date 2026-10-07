@@ -46,6 +46,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [activeTeams, setActiveTeams] = useState(new Set(TEAMS))
+  const [showPractices, setShowPractices] = useState(true)
   const [modalState, setModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [rinkModalState, setRinkModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [slotsDropdownOpen, setSlotsDropdownOpen] = useState(false)
@@ -368,11 +369,29 @@ export default function App() {
     setRinkModalState(null)
   }
 
+  // Open slots and practices are for signed-in users only - anyone who
+  // isn't logged in just never receives them here. (This is hiding in the
+  // page, same as the Season Stats table and Game Availability; the rows
+  // themselves are still publicly readable from the database.)
+  const viewerEvents = useMemo(
+    () =>
+      userEmail
+        ? events
+        : events.filter((ev) => ev.kind !== ENTRY_KIND.PRACTICE && ev.team !== OPEN_TEAM),
+    [events, userEmail]
+  )
+
   const visibleEvents = useMemo(
     // On-ice events are rink-wide (no team), so team filters don't apply to
     // them - everything else is filtered by the active team set as before.
-    () => events.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT || activeTeams.has(ev.team)),
-    [events, activeTeams]
+    // Practices also have their own Practices toggle on top of the team one.
+    () =>
+      viewerEvents.filter((ev) => {
+        if (ev.kind === ENTRY_KIND.ON_ICE_EVENT) return true
+        if (ev.kind === ENTRY_KIND.PRACTICE && !showPractices) return false
+        return activeTeams.has(ev.team)
+      }),
+    [viewerEvents, activeTeams, showPractices]
   )
 
   function toggleTeam(team) {
@@ -682,7 +701,7 @@ export default function App() {
           <button className="today-btn" onClick={goToday}>Today</button>
         </div>
         <div className="team-filters">
-          {TEAMS.map((team) => (
+          {TEAMS.filter((team) => userEmail || team !== OPEN_TEAM).map((team) => (
             <button
               key={team}
               className="team-chip"
@@ -693,6 +712,16 @@ export default function App() {
               {team}
             </button>
           ))}
+          {userEmail && (
+            <button
+              className="team-chip"
+              data-active={showPractices}
+              data-practice="true"
+              onClick={() => setShowPractices((v) => !v)}
+            >
+              Practices
+            </button>
+          )}
         </div>
       </div>
 
@@ -709,7 +738,7 @@ export default function App() {
           year={year}
           month={month}
           events={visibleEvents}
-          allEvents={events}
+          allEvents={viewerEvents}
           isEditor={isEditor}
           onDayClick={(dateKey) => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME, defaultDate: dateKey })}
           onEventClick={(ev) => setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })}

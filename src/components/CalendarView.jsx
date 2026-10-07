@@ -83,7 +83,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           // Home games listed first (earliest to latest), then away games
           // below them (also earliest to latest).
           const games = dayEntries
-            .filter((ev) => ev.kind !== ENTRY_KIND.ALLOCATION)
+            .filter((ev) => ev.kind === ENTRY_KIND.GAME)
             .sort((a, b) => {
               if (a.location !== b.location) return a.location === 'home' ? -1 : 1
               return (a.time || '').localeCompare(b.time || '')
@@ -152,7 +152,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           const allHomeGamesForDay = suppressionSource.filter(
             (ev) =>
               ev.date === cell.dateKey &&
-              ev.kind !== ENTRY_KIND.ALLOCATION &&
+              ev.kind === ENTRY_KIND.GAME &&
               (!ev.location || ev.location === 'home')
           )
           openAllocations = openAllocations.filter((alloc) => {
@@ -195,8 +195,10 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           // our ice today." Away games (this team's travel) get their own
           // chronological list below, since they don't compete for this
           // rink's time.
+          const practices = dayEntries.filter((ev) => ev.kind === ENTRY_KIND.PRACTICE)
           const homeRowItems = [
             ...groupsByTime.map((group) => ({ kind: 'alloc', time: group.time, group })),
+            ...practices.map((ev) => ({ kind: 'practice', time: ev.time || '', practice: ev })),
             ...games
               .filter((ev) => ev.location !== 'away')
               .map((ev) => ({ kind: 'game', time: ev.time || '', game: ev })),
@@ -265,6 +267,22 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
                           }
                         >
                           {group.time ? formatTime12h(group.time) : ''} {label}
+                        </button>
+                      )
+                    }
+                    if (item.kind === 'practice') {
+                      const pr = item.practice
+                      return (
+                        <button
+                          key={pr.id}
+                          className="event-chip"
+                          data-kind="practice"
+                          data-team={pr.team}
+                          onClick={() => onEventClick(pr)}
+                          title={`${pr.team} · Practice`}
+                        >
+                          <strong>{pr.time ? formatTime12h(pr.time) : ''} {pr.team}</strong>
+                          {pr.notes ? `Practice · ${pr.notes}` : 'Practice'}
                         </button>
                       )
                     }

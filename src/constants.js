@@ -71,12 +71,16 @@ export const EVENT_TYPES = ['Game', 'Practice', 'Tournament', 'Open Skate', 'Oth
 //   affects the Available to Travel list (for one team, if `team` is set,
 //   or every team if `team` is null) and has no effect at all on the
 //   calendar or anyone's home ice slots.
+// - 'practice': a team practice (team + date + time + optional notes). A
+//   category of its own, separate from games and ice-slot holds, and only
+//   visible to logged-in users.
 export const ENTRY_KIND = {
   ALLOCATION: 'allocation',
   GAME: 'game',
   TOURNAMENT: 'tournament',
   ON_ICE_EVENT: 'on_ice_event',
   TRAVEL_BLOCK: 'travel_block',
+  PRACTICE: 'practice',
 }
 
 export const RINK_EVENT_KINDS = [ENTRY_KIND.TOURNAMENT, ENTRY_KIND.ON_ICE_EVENT]

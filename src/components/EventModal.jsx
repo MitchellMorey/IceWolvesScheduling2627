@@ -213,6 +213,19 @@ export default function EventModal({
   }
 
   const isAllocation = form.kind === ENTRY_KIND.ALLOCATION
+  const isPractice = form.kind === ENTRY_KIND.PRACTICE
+  // A brand-new entry opened from a day's "+ Add" can be either a game or
+  // a practice - switch between them without closing the form.
+  const canChooseKind =
+    !initialEvent && !readOnly && (form.kind === ENTRY_KIND.GAME || form.kind === ENTRY_KIND.PRACTICE)
+  const switchKind = (nextKind) =>
+    setForm({
+      ...form,
+      kind: nextKind,
+      event_type: nextKind === ENTRY_KIND.PRACTICE ? 'Practice' : 'Game',
+      location: 'home',
+      opponent: nextKind === ENTRY_KIND.PRACTICE ? '' : form.opponent,
+    })
 
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value })
 
@@ -259,11 +272,17 @@ export default function EventModal({
           {readOnly
             ? isAllocation
               ? 'Time Slot Allocation'
+              : isPractice
+              ? 'Practice'
               : 'Schedule Entry'
             : isAllocation
             ? initialEvent
               ? 'Edit Time Slot Allocation'
               : 'Add Time Slot Allocation'
+            : isPractice
+            ? initialEvent
+              ? 'Edit Practice'
+              : 'Add Practice'
             : initialEvent
             ? 'Edit Schedule Entry'
             : 'Add Schedule Entry'}
@@ -279,6 +298,30 @@ export default function EventModal({
         {error && <div className="modal-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
+          {canChooseKind && (
+            <div className="field">
+              <label>Entry Type</label>
+              <div className="loc-toggle">
+                <button
+                  type="button"
+                  data-loc="home"
+                  data-active={!isPractice}
+                  onClick={() => switchKind(ENTRY_KIND.GAME)}
+                >
+                  Game
+                </button>
+                <button
+                  type="button"
+                  data-loc="home"
+                  data-active={isPractice}
+                  onClick={() => switchKind(ENTRY_KIND.PRACTICE)}
+                >
+                  Practice
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="field">
             <label htmlFor="team">Team</label>
             <select id="team" value={form.team} onChange={update('team')} disabled={readOnly}>
@@ -298,7 +341,14 @@ export default function EventModal({
             <input id="time" type="time" value={form.time} onChange={update('time')} disabled={readOnly} />
           </div>
 
-          {!isAllocation && (
+          {isPractice && (
+            <div className="field">
+              <label htmlFor="notes">Notes (optional)</label>
+              <textarea id="notes" value={form.notes} onChange={update('notes')} placeholder="Focus, reminders..." disabled={readOnly} />
+            </div>
+          )}
+
+          {!isAllocation && !isPractice && (
             <>
               <div className="field">
                 <label htmlFor="event_type">Type</label>

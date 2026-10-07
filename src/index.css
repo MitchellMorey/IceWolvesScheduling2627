@@ -362,6 +362,17 @@ button {
   color: var(--open);
 }
 
+.team-chip[data-practice="true"] {
+  border-style: dashed;
+  border-color: var(--ink-soft);
+  color: var(--ink-soft);
+}
+.team-chip[data-practice="true"][data-active="true"] {
+  border-style: solid;
+  border-color: var(--ink-soft);
+  background: var(--ink-soft);
+  color: white;
+}
 .team-chip[data-open="true"][data-active="true"] {
   border-style: solid;
   border-color: var(--open);
@@ -575,6 +586,13 @@ button {
 .event-chip[data-team="6U"] {
   border-left-color: var(--team-6u);
   background: var(--team-6u-soft);
+}
+
+/* Practices: team-colored edge like a game, but a neutral ice-blue body so
+   they read as a different category at a glance. */
+.event-chip[data-kind="practice"] {
+  background: var(--ice);
+  border-left-style: solid;
 }
 
 .event-chip[data-open="true"] {
