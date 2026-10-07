@@ -369,15 +369,22 @@ export default function App() {
     setRinkModalState(null)
   }
 
-  // Open slots and practices are for signed-in users only - anyone who
-  // isn't logged in just never receives them here. (This is hiding in the
-  // page, same as the Season Stats table and Game Availability; the rows
-  // themselves are still publicly readable from the database.)
+  // Signed-in users see everything. Anyone who isn't logged in only sees
+  // actual games, tournaments and rink events: ice-slot holds that haven't
+  // been filled in with a game (assigned or Open) and practices are never
+  // sent to the calendar for them. (This is hiding in the page, same as
+  // the Season Stats table and Game Availability; the rows themselves are
+  // still publicly readable from the database.)
   const viewerEvents = useMemo(
     () =>
       userEmail
         ? events
-        : events.filter((ev) => ev.kind !== ENTRY_KIND.PRACTICE && ev.team !== OPEN_TEAM),
+        : events.filter(
+            (ev) =>
+              ev.kind !== ENTRY_KIND.PRACTICE &&
+              ev.kind !== ENTRY_KIND.ALLOCATION &&
+              ev.team !== OPEN_TEAM
+          ),
     [events, userEmail]
   )
 
