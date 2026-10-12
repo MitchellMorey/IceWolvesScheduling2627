@@ -594,6 +594,50 @@ button {
   background: var(--ice);
   border-left-style: solid;
 }
+.event-chip[data-kind="practice"][data-team=""] {
+  border-left-color: var(--ink-soft);
+}
+.event-chip[data-conflict="true"] {
+  outline: 2px solid #d97706;
+  outline-offset: -2px;
+}
+.conflict-flag {
+  color: #b45309;
+}
+
+.practice-conflicts {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+}
+.practice-conflicts h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: #92400e;
+}
+.practice-conflicts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.practice-conflicts li + li {
+  margin-top: 4px;
+}
+.practice-conflicts button {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.practice-conflicts button:hover {
+  text-decoration: underline;
+}
 
 .event-chip[data-open="true"] {
   border-left-style: dashed;
@@ -1073,4 +1117,17 @@ button {
   .allocation-chip { font-size: 9.5px; }
   .scoreboard { font-size: 21px; min-width: unset; }
   .weekday-row span { font-size: 10px; }
+}
+
+.team-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.team-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 400;
 }

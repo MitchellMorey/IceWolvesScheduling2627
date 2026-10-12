@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { TEAMS, EVENT_TYPES, ENTRY_KIND } from '../constants'
+import { TEAMS, REAL_TEAMS, EVENT_TYPES, ENTRY_KIND } from '../constants'
+import { practiceTeams } from '../practiceUtils'
 import { formatTime12h } from '../dateUtils'
 
 const emptyForm = (dateKey, kind, prefillTeam, prefillTime) => ({
@@ -11,6 +12,7 @@ const emptyForm = (dateKey, kind, prefillTeam, prefillTime) => ({
   opponent: '',
   notes: '',
   kind,
+  ...(kind === ENTRY_KIND.PRACTICE ? { title: '', teams: [], end_time: '' } : {}),
 })
 
 function GroupAllocationRow({ allocation, siblingIds, onReassignRow, onUpdateRow, onDeleteRow, onFillGame, onRowRemoved }) {
@@ -192,6 +194,13 @@ export default function EventModal({
           opponent: initialEvent.opponent || '',
           notes: initialEvent.notes || '',
           kind: initialEvent.kind || ENTRY_KIND.GAME,
+          ...(initialEvent.kind === ENTRY_KIND.PRACTICE
+            ? {
+                title: initialEvent.title || initialEvent.team || '',
+                teams: practiceTeams(initialEvent),
+                end_time: initialEvent.end_time || '',
+              }
+            : {}),
         }
       : emptyForm(defaultDate, kind, prefillTeam, prefillTime)
   )
@@ -221,6 +230,9 @@ export default function EventModal({
   const switchKind = (nextKind) =>
     setForm({
       ...form,
+      ...(nextKind === ENTRY_KIND.PRACTICE
+        ? { title: form.title || '', teams: form.teams || [], end_time: form.end_time || '' }
+        : {}),
       kind: nextKind,
       event_type: nextKind === ENTRY_KIND.PRACTICE ? 'Practice' : 'Game',
       location: 'home',
@@ -231,7 +243,12 @@ export default function EventModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.team || !form.date) {
+    if (isPractice) {
+      if (!form.date || !(form.title || '').trim()) {
+        setError('Title and date are required.')
+        return
+      }
+    } else if (!form.team || !form.date) {
       setError('Team and date are required.')
       return
     }
@@ -322,14 +339,46 @@ export default function EventModal({
             </div>
           )}
 
-          <div className="field">
-            <label htmlFor="team">Team</label>
-            <select id="team" value={form.team} onChange={update('team')} disabled={readOnly}>
-              {TEAMS.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
+          {isPractice ? (
+            <>
+              <div className="field">
+                <label htmlFor="title">Title</label>
+                <input id="title" type="text" value={form.title || ''} onChange={update('title')} placeholder="e.g. Power Skating" disabled={readOnly} />
+              </div>
+              <div className="field">
+                <label>Teams (none = open to everyone)</label>
+                <div className="team-checks">
+                  {REAL_TEAMS.map((t) => (
+                    <label key={t} className="team-check">
+                      <input
+                        type="checkbox"
+                        checked={(form.teams || []).includes(t)}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            teams: e.target.checked
+                              ? [...(form.teams || []), t]
+                              : (form.teams || []).filter((x) => x !== t),
+                          })
+                        }
+                      />{' '}
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="field">
+              <label htmlFor="team">Team</label>
+              <select id="team" value={form.team} onChange={update('team')} disabled={readOnly}>
+                {TEAMS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="date">Date</label>
@@ -337,9 +386,16 @@ export default function EventModal({
           </div>
 
           <div className="field">
-            <label htmlFor="time">Time</label>
+            <label htmlFor="time">{isPractice ? 'Start Time' : 'Time'}</label>
             <input id="time" type="time" value={form.time} onChange={update('time')} disabled={readOnly} />
           </div>
+
+          {isPractice && (
+            <div className="field">
+              <label htmlFor="end_time">End Time</label>
+              <input id="end_time" type="time" value={form.end_time || ''} onChange={update('end_time')} disabled={readOnly} />
+            </div>
+          )}
 
           {isPractice && (
             <div className="field">

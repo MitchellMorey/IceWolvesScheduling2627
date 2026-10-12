@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import CalendarView from './components/CalendarView'
+import { practiceTeams } from './practiceUtils'
 import EventModal from './components/EventModal'
 import RinkEventModal from './components/RinkEventModal'
 import AvailableSlotsModal from './components/AvailableSlotsModal'
@@ -190,6 +191,18 @@ export default function App() {
             location: 'home',
             opponent: '',
             notes: rawForm.notes || '',
+          }
+        : rawForm.kind === ENTRY_KIND.PRACTICE
+        ? {
+            ...rawForm,
+            title: (rawForm.title || '').trim(),
+            teams: rawForm.teams || [],
+            team: (rawForm.teams || []).length === 1 ? rawForm.teams[0] : null,
+            end_time: rawForm.end_time || null,
+            time: rawForm.time || null,
+            event_type: 'Practice',
+            location: 'home',
+            opponent: '',
           }
         : rawForm
 
@@ -395,7 +408,13 @@ export default function App() {
     () =>
       viewerEvents.filter((ev) => {
         if (ev.kind === ENTRY_KIND.ON_ICE_EVENT) return true
-        if (ev.kind === ENTRY_KIND.PRACTICE && !showPractices) return false
+        if (ev.kind === ENTRY_KIND.PRACTICE) {
+          if (!showPractices) return false
+          // Rink-wide practices (no teams, e.g. Open Hockey) always show;
+          // team practices show when any of their teams is active.
+          const teams = practiceTeams(ev)
+          return teams.length === 0 || teams.some((t) => activeTeams.has(t))
+        }
         return activeTeams.has(ev.team)
       }),
     [viewerEvents, activeTeams, showPractices]

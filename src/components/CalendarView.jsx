@@ -1,5 +1,6 @@
 import { WEEKDAYS, OPEN_TEAM, ENTRY_KIND, TEAM_DURATION_MINUTES, durationMinutesFor } from '../constants'
-import { buildMonthGrid, todayKey, formatTime12h, timeToMinutes } from '../dateUtils'
+import { buildMonthGrid, todayKey, formatTime12h, timeToMinutes, formatDateLabel } from '../dateUtils'
+import { analyzeDayPractices, practiceInterval, practiceTitle } from '../practiceUtils'
 
 // Column 0/6 (Sun/Sat) are always wider. Columns 1-5 (Mon-Fri) start
 // narrow and individually expand to match the weekend width if that
@@ -34,6 +35,41 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
   const tournaments = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
   const visibleTournaments = events.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
   const onIceEvents = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
+
+  const tournamentsOn = (dateKey) =>
+    tournaments.filter((t) => dateKey >= t.date && dateKey <= (t.end_date || t.date))
+  const onIceOn = (dateKey) => onIceEvents.filter((t) => t.date === dateKey)
+  const allPractices = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.PRACTICE)
+
+  // Per-day practice precedence + game conflicts, always computed from the
+  // full unfiltered list (same reason as the other suppression above).
+  const analyzeDay = (dateKey) => {
+    const dayPractices = allPractices.filter((p) => p.date === dateKey)
+    if (dayPractices.length === 0) return { dayPractices, info: new Map(), games: [] }
+    const games = suppressionSource.filter(
+      (ev) => ev.date === dateKey && ev.kind === ENTRY_KIND.GAME && ev.team !== OPEN_TEAM
+    )
+    return {
+      dayPractices,
+      games,
+      info: analyzeDayPractices(dateKey, dayPractices, games, tournamentsOn(dateKey), onIceOn(dateKey)),
+    }
+  }
+
+  // "Practice conflicts" list for the month being shown.
+  const practiceConflicts = []
+  cells.forEach((cell) => {
+    if (cell.blank || cell.muted) return
+    const { dayPractices, info } = analyzeDay(cell.dateKey)
+    dayPractices.forEach((p) => {
+      const r = info.get(p.id)
+      if (!r) return
+      r.conflicts.forEach((game) => practiceConflicts.push({ date: cell.dateKey, practice: p, game, hidden: r.hidden }))
+    })
+  })
+  practiceConflicts.sort(
+    (a, b) => a.date.localeCompare(b.date) || (a.practice.time || '').localeCompare(b.practice.time || '')
+  )
 
   const eventsByDay = events.reduce((acc, ev) => {
     // Travel blocks only affect the Available to Travel list (computed
@@ -109,15 +145,13 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           // tournament takes over the whole rink for the dates it covers
           // (not just the tournament's own team's slots), and an on-ice
           // event takes over the rink for its specific time window.
-          const tournamentsForDay = tournaments.filter(
-            (t) => cell.dateKey >= t.date && cell.dateKey <= (t.end_date || t.date)
-          )
+          const tournamentsForDay = tournamentsOn(cell.dateKey)
           // Same date-range check, but against only the team-filtered
           // tournaments - this is what actually gets a chip drawn for it.
           const visibleTournamentsForDay = visibleTournaments.filter(
             (t) => cell.dateKey >= t.date && cell.dateKey <= (t.end_date || t.date)
           )
-          const onIceForDay = onIceEvents.filter((t) => t.date === cell.dateKey)
+          const onIceForDay = onIceOn(cell.dateKey)
 
           openAllocations = openAllocations.filter((alloc) => {
             const coveredByTournament = tournamentsForDay.some((t) => {
@@ -171,6 +205,35 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
             return !overriddenByGame
           })
 
+          // Practices supersede unfilled ice-slot holds (assigned or Open)
+          // they overlap - but only practices that are actually showing do
+          // (one wiped out by a rink event or a game doesn't).
+          const { info: practiceInfo, games: dayGames, dayPractices } = analyzeDay(cell.dateKey)
+          const shownPracticeIntervals = dayPractices
+            .filter((p) => !practiceInfo.get(p.id)?.hidden)
+            .map(practiceInterval)
+            .filter(Boolean)
+          if (shownPracticeIntervals.length > 0) {
+            openAllocations = openAllocations.filter((alloc) => {
+              const s = timeToMinutes(alloc.time)
+              if (s == null) return true
+              const e = s + (durationMinutesFor(alloc) || 60)
+              return !shownPracticeIntervals.some((pi) => pi[0] < e && s < pi[1])
+            })
+          }
+          // game id -> practices it collides with (for the warning marker)
+          const gameConflicts = new Map()
+          dayPractices.forEach((p) => {
+            ;(practiceInfo.get(p.id)?.conflicts || []).forEach((g) => {
+              if (!gameConflicts.has(g.id)) gameConflicts.set(g.id, [])
+              gameConflicts.get(g.id).push(p)
+            })
+          })
+          const conflictNote = (id) =>
+            (gameConflicts.get(id) || [])
+              .map((p) => `${practiceTitle(p)} practice ${formatTime12h(p.time)}–${p.end_time ? formatTime12h(p.end_time) : '?'}`)
+              .join('; ')
+
           const rinkEventChips = [
             ...visibleTournamentsForDay.map((ev) => ({ ...ev, chipKind: ENTRY_KIND.TOURNAMENT })),
             ...onIceForDay.map((ev) => ({ ...ev, chipKind: ENTRY_KIND.ON_ICE_EVENT })),
@@ -195,7 +258,9 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           // our ice today." Away games (this team's travel) get their own
           // chronological list below, since they don't compete for this
           // rink's time.
-          const practices = dayEntries.filter((ev) => ev.kind === ENTRY_KIND.PRACTICE)
+          const practices = dayEntries.filter(
+            (ev) => ev.kind === ENTRY_KIND.PRACTICE && !practiceInfo.get(ev.id)?.hidden
+          )
           const homeRowItems = [
             ...groupsByTime.map((group) => ({ kind: 'alloc', time: group.time, group })),
             ...practices.map((ev) => ({ kind: 'practice', time: ev.time || '', practice: ev })),
@@ -272,17 +337,25 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
                     }
                     if (item.kind === 'practice') {
                       const pr = item.practice
+                      const prNote = (practiceInfo.get(pr.id)?.conflicts || [])
+                        .map((g) => `${g.team} ${g.location === 'away' ? 'away game' : 'game'} ${formatTime12h(g.time)}`)
+                        .join('; ')
                       return (
                         <button
                           key={pr.id}
                           className="event-chip"
                           data-kind="practice"
-                          data-team={pr.team}
+                          data-team={pr.team || ''}
+                          data-conflict={prNote ? 'true' : undefined}
                           onClick={() => onEventClick(pr)}
-                          title={`${pr.team} · Practice`}
+                          title={`${practiceTitle(pr)} · Practice${prNote ? ` — CONFLICT with ${prNote}` : ''}`}
                         >
-                          <strong>{pr.time ? formatTime12h(pr.time) : ''} {pr.team}</strong>
-                          {pr.notes ? `Practice · ${pr.notes}` : 'Practice'}
+                          <strong>
+                            {prNote && <span className="conflict-flag" aria-label="Conflict">⚠ </span>}
+                            {pr.time ? formatTime12h(pr.time) : ''} {practiceTitle(pr)}
+                          </strong>
+                          {pr.end_time ? `Practice · ends ${formatTime12h(pr.end_time)}` : 'Practice'}
+                          {pr.notes ? ` · ${pr.notes}` : ''}
                         </button>
                       )
                     }
@@ -295,10 +368,18 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
                         data-loc={ev.location}
                         data-team={ev.team}
                         data-open={isOpen}
+                        data-conflict={gameConflicts.has(ev.id) ? 'true' : undefined}
                         onClick={() => onEventClick(ev)}
-                        title={isOpen ? 'Open ice - not yet assigned' : `${ev.team} · ${ev.event_type}`}
+                        title={
+                          isOpen
+                            ? 'Open ice - not yet assigned'
+                            : `${ev.team} · ${ev.event_type}${gameConflicts.has(ev.id) ? ` — CONFLICT with ${conflictNote(ev.id)}` : ''}`
+                        }
                       >
-                        <strong>{ev.time ? formatTime12h(ev.time) : ''} {ev.team}</strong>
+                        <strong>
+                          {gameConflicts.has(ev.id) && <span className="conflict-flag" aria-label="Conflict">⚠ </span>}
+                          {ev.time ? formatTime12h(ev.time) : ''} {ev.team}
+                        </strong>
                         {isOpen
                           ? 'Open · tap to assign'
                           : `${ev.event_type}${ev.opponent ? ` vs ${ev.opponent}` : ''}`}
@@ -315,10 +396,14 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
                     className="event-chip"
                     data-loc={ev.location}
                     data-team={ev.team}
+                    data-conflict={gameConflicts.has(ev.id) ? 'true' : undefined}
                     onClick={() => onEventClick(ev)}
-                    title={`${ev.team} · ${ev.event_type}`}
+                    title={`${ev.team} · ${ev.event_type}${gameConflicts.has(ev.id) ? ` — CONFLICT with ${conflictNote(ev.id)}` : ''}`}
                   >
-                    <strong>{ev.time ? formatTime12h(ev.time) : ''} {ev.team}</strong>
+                    <strong>
+                      {gameConflicts.has(ev.id) && <span className="conflict-flag" aria-label="Conflict">⚠ </span>}
+                      {ev.time ? formatTime12h(ev.time) : ''} {ev.team}
+                    </strong>
                     {`${ev.event_type}${ev.opponent ? ` @ ${ev.opponent}` : ''}`}
                   </button>
                 ))}
@@ -332,6 +417,26 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           )
         })}
       </div>
+
+      {practiceConflicts.length > 0 && (
+        <section className="practice-conflicts">
+          <h3>⚠ Practice conflicts ({practiceConflicts.length})</h3>
+          <ul>
+            {practiceConflicts.map((c) => (
+              <li key={`${c.practice.id}-${c.game.id}`}>
+                <button type="button" onClick={() => onEventClick(c.game)}>
+                  <strong>{formatDateLabel(c.date)}</strong>{' '}
+                  {practiceTitle(c.practice)} practice {formatTime12h(c.practice.time)}
+                  {c.practice.end_time ? `–${formatTime12h(c.practice.end_time)}` : ''} overlaps{' '}
+                  {c.game.team} {c.game.location === 'away' ? 'away ' : ''}game {formatTime12h(c.game.time)}
+                  {c.game.opponent ? ` ${c.game.location === 'away' ? '@' : 'vs'} ${c.game.opponent}` : ''}
+                  {c.hidden ? ' (practice hidden on calendar)' : ''}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </>
   )
 }
