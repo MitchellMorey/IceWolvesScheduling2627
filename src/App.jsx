@@ -230,6 +230,56 @@ export default function App() {
 
     throwIfTimeConflict(form, siblingAllocation ? [existingId, siblingAllocation.id] : existingId)
 
+    // A home game with no opponent isn't really a game - it's just ice that
+    // someone is holding. Clearing the opponent therefore turns it back into
+    // a plain hold (the gray chip) instead of leaving a game-colored chip.
+    const isOpponentlessHomeGame =
+      form.kind === ENTRY_KIND.GAME &&
+      form.team !== OPEN_TEAM &&
+      form.event_type === 'Game' &&
+      (!form.location || form.location === 'home') &&
+      !(form.opponent || '').trim()
+
+    if (isOpponentlessHomeGame && existingGame && existingGame.kind === ENTRY_KIND.GAME) {
+      if (siblingAllocation) {
+        // The game's own hold is still there - just drop the game and keep
+        // the hold at the (possibly edited) date/time.
+        if (form.date !== siblingAllocation.date || form.time !== siblingAllocation.time) {
+          const { data: allocData, error: allocError } = await supabase
+            .from('events')
+            .update({ date: form.date, time: form.time })
+            .eq('id', siblingAllocation.id)
+            .select()
+          if (allocError) throw allocError
+          setEvents((prev) => prev.map((ev) => (ev.id === siblingAllocation.id ? allocData[0] : ev)))
+        }
+        const { error: delError } = await supabase.from('events').delete().eq('id', existingId)
+        if (delError) throw delError
+        setEvents((prev) => prev.filter((ev) => ev.id !== existingId))
+      } else {
+        // No separate hold exists, so convert the game row itself into one.
+        const { data, error } = await supabase
+          .from('events')
+          .update({
+            kind: ENTRY_KIND.ALLOCATION,
+            team: form.team,
+            original_team: form.team,
+            date: form.date,
+            time: form.time,
+            event_type: 'Practice',
+            location: 'home',
+            opponent: '',
+            notes: form.notes || '',
+            duration_minutes: null,
+          })
+          .eq('id', existingId)
+          .select()
+        if (error) throw error
+        setEvents((prev) => prev.map((ev) => (ev.id === existingId ? data[0] : ev)))
+      }
+      return
+    }
+
     if (existingId) {
       // A slot can carry an explicit duration_minutes (see constants.js) -
       // normally only used by a standing Open ice hold that was never any
