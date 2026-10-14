@@ -13,7 +13,6 @@ const emptyForm = (dateKey, kind, prefillTeam, prefillTime) => ({
   notes: '',
   kind,
   ...(kind === ENTRY_KIND.PRACTICE ? { title: '', teams: [], end_time: '' } : {}),
-  ...(kind === ENTRY_KIND.ICE_RENTAL ? { title: '', end_time: '' } : {}),
 })
 
 function GroupAllocationRow({ allocation, siblingIds, onReassignRow, onUpdateRow, onDeleteRow, onFillGame, onRowRemoved }) {
@@ -202,9 +201,6 @@ export default function EventModal({
                 end_time: initialEvent.end_time || '',
               }
             : {}),
-          ...(initialEvent.kind === ENTRY_KIND.ICE_RENTAL
-            ? { title: initialEvent.title || '', end_time: initialEvent.end_time || '' }
-            : {}),
         }
       : emptyForm(defaultDate, kind, prefillTeam, prefillTime)
   )
@@ -226,28 +222,21 @@ export default function EventModal({
   }
 
   const isAllocation = form.kind === ENTRY_KIND.ALLOCATION
-  const isRental = form.kind === ENTRY_KIND.ICE_RENTAL
-  // Practices and rentals share the same style of form (title, start/end).
-  const isPractice = form.kind === ENTRY_KIND.PRACTICE || isRental
-  const isTeamPractice = form.kind === ENTRY_KIND.PRACTICE
+  const isPractice = form.kind === ENTRY_KIND.PRACTICE
   // A brand-new entry opened from a day's "+ Add" can be either a game or
   // a practice - switch between them without closing the form.
   const canChooseKind =
-    !initialEvent &&
-    !readOnly &&
-    (form.kind === ENTRY_KIND.GAME || form.kind === ENTRY_KIND.PRACTICE || form.kind === ENTRY_KIND.ICE_RENTAL)
+    !initialEvent && !readOnly && (form.kind === ENTRY_KIND.GAME || form.kind === ENTRY_KIND.PRACTICE)
   const switchKind = (nextKind) =>
     setForm({
       ...form,
       ...(nextKind === ENTRY_KIND.PRACTICE
         ? { title: form.title || '', teams: form.teams || [], end_time: form.end_time || '' }
         : {}),
-      ...(nextKind === ENTRY_KIND.ICE_RENTAL ? { title: form.title || '', end_time: form.end_time || '' } : {}),
       kind: nextKind,
-      event_type:
-        nextKind === ENTRY_KIND.PRACTICE ? 'Practice' : nextKind === ENTRY_KIND.ICE_RENTAL ? 'Ice Rental' : 'Game',
+      event_type: nextKind === ENTRY_KIND.PRACTICE ? 'Practice' : 'Game',
       location: 'home',
-      opponent: nextKind === ENTRY_KIND.GAME ? form.opponent : '',
+      opponent: nextKind === ENTRY_KIND.PRACTICE ? '' : form.opponent,
     })
 
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value })
@@ -256,7 +245,7 @@ export default function EventModal({
     e.preventDefault()
     if (isPractice) {
       if (!form.date || !(form.title || '').trim()) {
-        setError(isRental ? 'Renter and date are required.' : 'Title and date are required.')
+        setError('Title and date are required.')
         return
       }
     } else if (!form.team || !form.date) {
@@ -300,8 +289,6 @@ export default function EventModal({
           {readOnly
             ? isAllocation
               ? 'Time Slot Allocation'
-              : isRental
-              ? 'Ice Rental'
               : isPractice
               ? 'Practice'
               : 'Schedule Entry'
@@ -309,10 +296,6 @@ export default function EventModal({
             ? initialEvent
               ? 'Edit Time Slot Allocation'
               : 'Add Time Slot Allocation'
-            : isRental
-            ? initialEvent
-              ? 'Edit Ice Rental'
-              : 'Add Ice Rental'
             : isPractice
             ? initialEvent
               ? 'Edit Practice'
@@ -347,18 +330,10 @@ export default function EventModal({
                 <button
                   type="button"
                   data-loc="home"
-                  data-active={isTeamPractice}
+                  data-active={isPractice}
                   onClick={() => switchKind(ENTRY_KIND.PRACTICE)}
                 >
                   Practice
-                </button>
-                <button
-                  type="button"
-                  data-loc="home"
-                  data-active={isRental}
-                  onClick={() => switchKind(ENTRY_KIND.ICE_RENTAL)}
-                >
-                  Ice Rental
                 </button>
               </div>
             </div>
@@ -367,10 +342,9 @@ export default function EventModal({
           {isPractice ? (
             <>
               <div className="field">
-                <label htmlFor="title">{isRental ? 'Renter / Group' : 'Title'}</label>
-                <input id="title" type="text" value={form.title || ''} onChange={update('title')} placeholder={isRental ? 'e.g. Madison Youth Figure Skating' : 'e.g. Power Skating'} disabled={readOnly} />
+                <label htmlFor="title">Title</label>
+                <input id="title" type="text" value={form.title || ''} onChange={update('title')} placeholder="e.g. Power Skating" disabled={readOnly} />
               </div>
-              {isTeamPractice && (
               <div className="field">
                 <label>Teams (none = open to everyone)</label>
                 <div className="team-checks">
@@ -394,7 +368,6 @@ export default function EventModal({
                   ))}
                 </div>
               </div>
-              )}
             </>
           ) : (
             <div className="field">

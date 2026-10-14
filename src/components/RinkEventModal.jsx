@@ -29,7 +29,8 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
           all_day: !!initialEvent.all_day,
           time: initialEvent.time || '',
           end_time: initialEvent.end_time || '',
-          title: initialEvent.opponent || '',
+          title:
+            initialEvent.kind === ENTRY_KIND.ICE_RENTAL ? initialEvent.title || '' : initialEvent.opponent || '',
           notes: initialEvent.notes || '',
         }
       : emptyRinkForm(ENTRY_KIND.TOURNAMENT, defaultDate)
@@ -38,6 +39,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
   const [saving, setSaving] = useState(false)
 
   const isTournament = kind === ENTRY_KIND.TOURNAMENT
+  const isRental = kind === ENTRY_KIND.ICE_RENTAL
 
   const switchKind = (nextKind) => {
     setKind(nextKind)
@@ -54,7 +56,11 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
       setError('Pick a team for the tournament.')
       return
     }
-    if (!isTournament && !form.title.trim()) {
+    if (isRental && !form.title.trim()) {
+      setError('Enter the renter or group name.')
+      return
+    }
+    if (!isTournament && !isRental && !form.title.trim()) {
       setError('Give this on-ice event a title.')
       return
     }
@@ -66,11 +72,19 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
       setError('End date must be on or after the start date.')
       return
     }
-    if (!isTournament && !form.all_day && (!form.time || !form.end_time)) {
+    if (isRental && (!form.time || !form.end_time)) {
+      setError('Start and end time are required for an ice rental.')
+      return
+    }
+    if (isRental && form.end_time <= form.time) {
+      setError('End time must be after start time.')
+      return
+    }
+    if (!isTournament && !isRental && !form.all_day && (!form.time || !form.end_time)) {
       setError('Start and end time are required for an on-ice event (or check "All day").')
       return
     }
-    if (!isTournament && !form.all_day && form.end_time <= form.time) {
+    if (!isTournament && !isRental && !form.all_day && form.end_time <= form.time) {
       setError('End time must be after start time.')
       return
     }
@@ -86,19 +100,34 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
       return
     }
 
-    const payload = {
-      kind,
-      team: isTournament ? form.team : null,
-      date: form.date,
-      end_date: isTournament ? form.end_date || form.date : form.date,
-      all_day: form.all_day,
-      time: form.all_day ? null : form.time || null,
-      end_time: form.all_day ? null : form.end_time || null,
-      event_type: isTournament ? 'Tournament' : 'On-Ice Event',
-      location: 'home',
-      opponent: isTournament ? '' : form.title.trim(),
-      notes: form.notes,
-    }
+    const payload = isRental
+      ? {
+          kind,
+          team: null,
+          title: form.title.trim(),
+          date: form.date,
+          end_date: form.date,
+          all_day: false,
+          time: form.time,
+          end_time: form.end_time,
+          event_type: 'Ice Rental',
+          location: 'home',
+          opponent: '',
+          notes: form.notes,
+        }
+      : {
+          kind,
+          team: isTournament ? form.team : null,
+          date: form.date,
+          end_date: isTournament ? form.end_date || form.date : form.date,
+          all_day: form.all_day,
+          time: form.all_day ? null : form.time || null,
+          end_time: form.all_day ? null : form.end_time || null,
+          event_type: isTournament ? 'Tournament' : 'On-Ice Event',
+          location: 'home',
+          opponent: isTournament ? '' : form.title.trim(),
+          notes: form.notes,
+        }
 
     setSaving(true)
     setError('')
@@ -113,7 +142,14 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
 
   const handleDelete = async () => {
     if (!initialEvent) return
-    if (!confirm('Remove this rink event? Individual ice-slot holds underneath it will reappear.')) return
+    if (
+      !confirm(
+        isRental
+          ? 'Remove this ice rental?'
+          : 'Remove this rink event? Individual ice-slot holds underneath it will reappear.'
+      )
+    )
+      return
     setSaving(true)
     try {
       await onDelete(initialEvent.id)
@@ -126,7 +162,19 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>{readOnly ? 'Rink Event' : initialEvent ? 'Edit Rink Event' : 'Add Rink Event'}</h2>
+        <h2>
+          {isRental
+            ? readOnly
+              ? 'Ice Rental'
+              : initialEvent
+              ? 'Edit Ice Rental'
+              : 'Add Ice Rental'
+            : readOnly
+            ? 'Rink Event'
+            : initialEvent
+            ? 'Edit Rink Event'
+            : 'Add Rink Event'}
+        </h2>
 
         {!initialEvent && !readOnly && (
           <div className="loc-toggle type-toggle" style={{ marginBottom: '16px' }}>
@@ -139,16 +187,25 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
             </button>
             <button
               type="button"
-              data-active={!isTournament}
+              data-active={!isTournament && !isRental}
               onClick={() => switchKind(ENTRY_KIND.ON_ICE_EVENT)}
             >
               On-Ice Event
+            </button>
+            <button
+              type="button"
+              data-active={isRental}
+              onClick={() => switchKind(ENTRY_KIND.ICE_RENTAL)}
+            >
+              Ice Rental
             </button>
           </div>
         )}
 
         <p className="modal-hint">
-          {isTournament
+          {isRental
+            ? 'Ice rented to an outside group (logged-in users only). It hides unfilled ice-slot holds and practices it overlaps, but a scheduled home game or a rink event takes priority over it - overlaps with a game are flagged instead of blocked.'
+            : isTournament
             ? "A tournament hides every team's individual ice-slot holds for the dates it covers. It won't save if a home game is already scheduled in that window - move or remove the game first."
             : form.all_day
             ? 'An all-day on-ice event hides every ice-slot hold (any team) on this date, the same as an all-day tournament. It won’t save if a home game is already scheduled that day.'
@@ -183,19 +240,20 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
 
           {!isTournament && (
             <div className="field">
-              <label htmlFor="rink-title">Title</label>
+              <label htmlFor="rink-title">{isRental ? 'Renter / Group' : 'Title'}</label>
               <input
                 id="rink-title"
                 type="text"
                 value={form.title}
                 onChange={update('title')}
-                placeholder="e.g. Zamboni Resurface, Public Skate"
+                placeholder={isRental ? 'e.g. Madison Youth Figure Skating' : 'e.g. Zamboni Resurface, Public Skate'}
                 required
                 disabled={readOnly}
               />
             </div>
           )}
 
+          {!isRental && (
           <div className="field">
             <label>
               <input
@@ -207,6 +265,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
               All day
             </label>
           </div>
+          )}
 
           {!form.all_day && (
             <>
@@ -257,7 +316,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
           )}
 
           {!isTournament && !initialEvent && (
-            <p className="modal-hint">The title shows on the calendar chip for this event.</p>
+            <p className="modal-hint">{isRental ? 'The renter name shows on the calendar chip.' : 'The title shows on the calendar chip for this event.'}</p>
           )}
 
           <div className="modal-actions">

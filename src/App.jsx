@@ -193,17 +193,6 @@ export default function App() {
             opponent: '',
             notes: rawForm.notes || '',
           }
-        : rawForm.kind === ENTRY_KIND.ICE_RENTAL
-        ? {
-            ...rawForm,
-            title: (rawForm.title || '').trim(),
-            team: null,
-            end_time: rawForm.end_time || null,
-            time: rawForm.time || null,
-            event_type: 'Ice Rental',
-            location: 'home',
-            opponent: '',
-          }
         : rawForm.kind === ENTRY_KIND.PRACTICE
         ? {
             ...rawForm,
@@ -415,7 +404,10 @@ export default function App() {
   }
 
   async function handleSaveRinkEvent(form, existingId) {
-    const conflicts = findConflicts(form, existingId)
+    // Ice rentals are never blocked by a scheduled game - the calendar hides
+    // the rental and flags the overlap instead - so only real rink events
+    // get the hard conflict check.
+    const conflicts = form.kind === ENTRY_KIND.ICE_RENTAL ? [] : findConflicts(form, existingId)
     if (conflicts.length > 0) {
       const list = conflicts
         .map((c) => `${c.team} ${c.date}${c.time ? ` ${formatTime12h(c.time)}` : ''}`)
@@ -842,7 +834,11 @@ export default function App() {
           allEvents={viewerEvents}
           isEditor={isEditor}
           onDayClick={(dateKey) => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME, defaultDate: dateKey })}
-          onEventClick={(ev) => setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })}
+          onEventClick={(ev) =>
+            ev.kind === ENTRY_KIND.ICE_RENTAL
+              ? setRinkModalState({ mode: 'edit', event: ev })
+              : setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })
+          }
           onGroupClick={(group) => setModalState({ mode: 'group', group })}
           onRinkEventClick={(ev) => setRinkModalState({ mode: 'edit', event: ev })}
         />
