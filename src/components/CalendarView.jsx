@@ -1,6 +1,12 @@
 import { WEEKDAYS, OPEN_TEAM, ENTRY_KIND, TEAM_DURATION_MINUTES, durationMinutesFor } from '../constants'
 import { buildMonthGrid, todayKey, formatTime12h, timeToMinutes, formatDateLabel } from '../dateUtils'
-import { analyzeDayPractices, practiceInterval, practiceTitle } from '../practiceUtils'
+import {
+  analyzeDayPractices,
+  analyzeDayRentals,
+  intervalsOverlap,
+  practiceInterval,
+  practiceTitle,
+} from '../practiceUtils'
 
 // Column 0/6 (Sun/Sat) are always wider. Columns 1-5 (Mon-Fri) start
 // narrow and individually expand to match the weekend width if that
@@ -40,28 +46,48 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
     tournaments.filter((t) => dateKey >= t.date && dateKey <= (t.end_date || t.date))
   const onIceOn = (dateKey) => onIceEvents.filter((t) => t.date === dateKey)
   const allPractices = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.PRACTICE)
+  const allRentals = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.ICE_RENTAL)
 
-  // Per-day practice precedence + game conflicts, always computed from the
-  // full unfiltered list (same reason as the other suppression above).
+  // Per-day practice + ice-rental precedence and game conflicts, always
+  // computed from the full unfiltered list (same reason as the other
+  // suppression above). `info` maps a practice/rental id to
+  // { hidden, conflicts: [game] }.
+  //  - rink events and scheduled home games hide rentals and practices
+  //    (Learn to Play is only ever hidden by a rental or a game... never a
+  //    rink event)
+  //  - a rental that is showing also hides any practice it overlaps
   const analyzeDay = (dateKey) => {
     const dayPractices = allPractices.filter((p) => p.date === dateKey)
-    if (dayPractices.length === 0) return { dayPractices, info: new Map(), games: [] }
+    const dayRentals = allRentals.filter((r) => r.date === dateKey)
+    if (dayPractices.length === 0 && dayRentals.length === 0)
+      return { dayPractices, dayRentals, info: new Map(), games: [] }
     const games = suppressionSource.filter(
       (ev) => ev.date === dateKey && ev.kind === ENTRY_KIND.GAME && ev.team !== OPEN_TEAM
     )
-    return {
-      dayPractices,
-      games,
-      info: analyzeDayPractices(dateKey, dayPractices, games, tournamentsOn(dateKey), onIceOn(dateKey)),
-    }
+    const t = tournamentsOn(dateKey)
+    const o = onIceOn(dateKey)
+    const info = analyzeDayPractices(dateKey, dayPractices, games, t, o)
+    const rentalInfo = analyzeDayRentals(dateKey, dayRentals, games, t, o)
+    const shownRentalIntervals = dayRentals
+      .filter((r) => !rentalInfo.get(r.id)?.hidden)
+      .map(practiceInterval)
+      .filter(Boolean)
+    dayPractices.forEach((p) => {
+      const pi = practiceInterval(p)
+      if (pi && shownRentalIntervals.some((ri) => intervalsOverlap(pi, ri))) {
+        info.set(p.id, { hidden: true, conflicts: [] })
+      }
+    })
+    rentalInfo.forEach((v, k) => info.set(k, v))
+    return { dayPractices, dayRentals, games, info }
   }
 
-  // "Practice conflicts" list for the month being shown.
+  // "Conflicts" list (practice/rental vs game) for the month being shown.
   const practiceConflicts = []
   cells.forEach((cell) => {
     if (cell.blank || cell.muted) return
-    const { dayPractices, info } = analyzeDay(cell.dateKey)
-    dayPractices.forEach((p) => {
+    const { dayPractices, dayRentals, info } = analyzeDay(cell.dateKey)
+    ;[...dayPractices, ...dayRentals].forEach((p) => {
       const r = info.get(p.id)
       if (!r) return
       r.conflicts.forEach((game) => practiceConflicts.push({ date: cell.dateKey, practice: p, game, hidden: r.hidden }))
@@ -70,6 +96,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
   practiceConflicts.sort(
     (a, b) => a.date.localeCompare(b.date) || (a.practice.time || '').localeCompare(b.practice.time || '')
   )
+  const kindLabel = (p) => (p.kind === ENTRY_KIND.ICE_RENTAL ? 'rental' : 'practice')
 
   const eventsByDay = events.reduce((acc, ev) => {
     // Travel blocks only affect the Available to Travel list (computed
@@ -205,11 +232,11 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
             return !overriddenByGame
           })
 
-          // Practices supersede unfilled ice-slot holds (assigned or Open)
-          // they overlap - but only practices that are actually showing do
+          // Practices and ice rentals supersede unfilled ice-slot holds (assigned
+          // or Open) they overlap - but only ones that are actually showing do
           // (one wiped out by a rink event or a game doesn't).
-          const { info: practiceInfo, games: dayGames, dayPractices } = analyzeDay(cell.dateKey)
-          const shownPracticeIntervals = dayPractices
+          const { info: practiceInfo, dayPractices, dayRentals } = analyzeDay(cell.dateKey)
+          const shownPracticeIntervals = [...dayPractices, ...dayRentals]
             .filter((p) => !practiceInfo.get(p.id)?.hidden)
             .map(practiceInterval)
             .filter(Boolean)
@@ -223,7 +250,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           }
           // game id -> practices it collides with (for the warning marker)
           const gameConflicts = new Map()
-          dayPractices.forEach((p) => {
+          ;[...dayPractices, ...dayRentals].forEach((p) => {
             ;(practiceInfo.get(p.id)?.conflicts || []).forEach((g) => {
               if (!gameConflicts.has(g.id)) gameConflicts.set(g.id, [])
               gameConflicts.get(g.id).push(p)
@@ -231,7 +258,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           })
           const conflictNote = (id) =>
             (gameConflicts.get(id) || [])
-              .map((p) => `${practiceTitle(p)} practice ${formatTime12h(p.time)}–${p.end_time ? formatTime12h(p.end_time) : '?'}`)
+              .map((p) => `${practiceTitle(p)} ${kindLabel(p)} ${formatTime12h(p.time)}–${p.end_time ? formatTime12h(p.end_time) : '?'}`)
               .join('; ')
 
           const rinkEventChips = [
@@ -261,9 +288,13 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           const practices = dayEntries.filter(
             (ev) => ev.kind === ENTRY_KIND.PRACTICE && !practiceInfo.get(ev.id)?.hidden
           )
+          const rentals = dayEntries.filter(
+            (ev) => ev.kind === ENTRY_KIND.ICE_RENTAL && !practiceInfo.get(ev.id)?.hidden
+          )
           const homeRowItems = [
             ...groupsByTime.map((group) => ({ kind: 'alloc', time: group.time, group })),
             ...practices.map((ev) => ({ kind: 'practice', time: ev.time || '', practice: ev })),
+            ...rentals.map((ev) => ({ kind: 'rental', time: ev.time || '', rental: ev })),
             ...games
               .filter((ev) => ev.location !== 'away')
               .map((ev) => ({ kind: 'game', time: ev.time || '', game: ev })),
@@ -332,6 +363,25 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
                           }
                         >
                           {group.time ? formatTime12h(group.time) : ''} {label}
+                        </button>
+                      )
+                    }
+                    if (item.kind === 'rental') {
+                      const rn = item.rental
+                      const rnNote = (practiceInfo.get(rn.id)?.conflicts || [])
+                        .map((g) => `${g.team} game ${formatTime12h(g.time)}`)
+                        .join('; ')
+                      return (
+                        <button
+                          key={rn.id}
+                          className="event-chip"
+                          data-kind="rental"
+                          onClick={() => onEventClick(rn)}
+                          title={`${practiceTitle(rn)} · Ice rental${rnNote ? ` — CONFLICT with ${rnNote}` : ''}`}
+                        >
+                          <strong>{rn.time ? formatTime12h(rn.time) : ''} {practiceTitle(rn)}</strong>
+                          {rn.end_time ? `Ice rental · ends ${formatTime12h(rn.end_time)}` : 'Ice rental'}
+                          {rn.notes ? ` · ${rn.notes}` : ''}
                         </button>
                       )
                     }
@@ -420,17 +470,17 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
 
       {practiceConflicts.length > 0 && (
         <section className="practice-conflicts">
-          <h3>⚠ Practice conflicts ({practiceConflicts.length})</h3>
+          <h3>⚠ Practice &amp; rental conflicts ({practiceConflicts.length})</h3>
           <ul>
             {practiceConflicts.map((c) => (
               <li key={`${c.practice.id}-${c.game.id}`}>
                 <button type="button" onClick={() => onEventClick(c.game)}>
                   <strong>{formatDateLabel(c.date)}</strong>{' '}
-                  {practiceTitle(c.practice)} practice {formatTime12h(c.practice.time)}
+                  {practiceTitle(c.practice)} {kindLabel(c.practice)} {formatTime12h(c.practice.time)}
                   {c.practice.end_time ? `–${formatTime12h(c.practice.end_time)}` : ''} overlaps{' '}
                   {c.game.team} {c.game.location === 'away' ? 'away ' : ''}game {formatTime12h(c.game.time)}
                   {c.game.opponent ? ` ${c.game.location === 'away' ? '@' : 'vs'} ${c.game.opponent}` : ''}
-                  {c.hidden ? ' (practice hidden on calendar)' : ''}
+                  {c.hidden ? ` (${kindLabel(c.practice)} hidden on calendar)` : ''}
                 </button>
               </li>
             ))}

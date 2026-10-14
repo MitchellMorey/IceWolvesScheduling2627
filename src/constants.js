@@ -74,6 +74,10 @@ export const EVENT_TYPES = ['Game', 'Practice', 'Tournament', 'Open Skate', 'Oth
 // - 'practice': a team practice (team + date + time + optional notes). A
 //   category of its own, separate from games and ice-slot holds, and only
 //   visible to logged-in users.
+// - 'ice_rental': ice rented out to an outside group (title = renter, date,
+//   start/end time, notes). Not tied to a team; logged-in users only. It
+//   takes over unfilled holds and practices it overlaps, but games and rink
+//   events take priority over it.
 export const ENTRY_KIND = {
   ALLOCATION: 'allocation',
   GAME: 'game',
@@ -81,6 +85,7 @@ export const ENTRY_KIND = {
   ON_ICE_EVENT: 'on_ice_event',
   TRAVEL_BLOCK: 'travel_block',
   PRACTICE: 'practice',
+  ICE_RENTAL: 'ice_rental',
 }
 
 export const RINK_EVENT_KINDS = [ENTRY_KIND.TOURNAMENT, ENTRY_KIND.ON_ICE_EVENT]

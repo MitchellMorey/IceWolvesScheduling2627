@@ -90,3 +90,30 @@ export function analyzeDayPractices(dateKey, practices, games, tournaments, onIc
   })
   return info
 }
+
+// Ice rentals: a shown rental takes over unfilled holds and practices it
+// overlaps (even Learn to Play), but rink events and scheduled home games
+// win over a rental - those hide it. A rental overlapping a home game is a
+// conflict (away games don't use our ice, so they never conflict).
+// Returns Map(rentalId -> { hidden, conflicts: [game] }).
+export function analyzeDayRentals(dateKey, rentals, games, tournaments, onIce) {
+  const info = new Map()
+  rentals.forEach((r) => {
+    const ri = practiceInterval(r)
+    if (!ri) {
+      info.set(r.id, { hidden: false, conflicts: [] })
+      return
+    }
+    if (coveredByRinkEvent(ri, dateKey, tournaments, onIce)) {
+      info.set(r.id, { hidden: true, conflicts: [] })
+      return
+    }
+    const conflicts = games.filter((g) => {
+      if (g.location === 'away') return false
+      const gi = gameInterval(g)
+      return gi && intervalsOverlap(ri, gi)
+    })
+    info.set(r.id, { hidden: conflicts.length > 0, conflicts })
+  })
+  return info
+}

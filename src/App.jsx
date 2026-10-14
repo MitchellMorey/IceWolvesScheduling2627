@@ -48,6 +48,7 @@ export default function App() {
   const [loadError, setLoadError] = useState('')
   const [activeTeams, setActiveTeams] = useState(new Set(TEAMS))
   const [showPractices, setShowPractices] = useState(true)
+  const [showRentals, setShowRentals] = useState(true)
   const [modalState, setModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [rinkModalState, setRinkModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [slotsDropdownOpen, setSlotsDropdownOpen] = useState(false)
@@ -191,6 +192,17 @@ export default function App() {
             location: 'home',
             opponent: '',
             notes: rawForm.notes || '',
+          }
+        : rawForm.kind === ENTRY_KIND.ICE_RENTAL
+        ? {
+            ...rawForm,
+            title: (rawForm.title || '').trim(),
+            team: null,
+            end_time: rawForm.end_time || null,
+            time: rawForm.time || null,
+            event_type: 'Ice Rental',
+            location: 'home',
+            opponent: '',
           }
         : rawForm.kind === ENTRY_KIND.PRACTICE
         ? {
@@ -445,6 +457,7 @@ export default function App() {
         : events.filter(
             (ev) =>
               ev.kind !== ENTRY_KIND.PRACTICE &&
+              ev.kind !== ENTRY_KIND.ICE_RENTAL &&
               ev.kind !== ENTRY_KIND.ALLOCATION &&
               ev.team !== OPEN_TEAM
           ),
@@ -458,6 +471,8 @@ export default function App() {
     () =>
       viewerEvents.filter((ev) => {
         if (ev.kind === ENTRY_KIND.ON_ICE_EVENT) return true
+        // Ice rentals aren't tied to a team - only the Ice Rentals toggle applies.
+        if (ev.kind === ENTRY_KIND.ICE_RENTAL) return showRentals
         if (ev.kind === ENTRY_KIND.PRACTICE) {
           if (!showPractices) return false
           // Rink-wide practices (no teams, e.g. Open Hockey) always show;
@@ -467,7 +482,7 @@ export default function App() {
         }
         return activeTeams.has(ev.team)
       }),
-    [viewerEvents, activeTeams, showPractices]
+    [viewerEvents, activeTeams, showPractices, showRentals]
   )
 
   function toggleTeam(team) {
@@ -796,6 +811,16 @@ export default function App() {
               onClick={() => setShowPractices((v) => !v)}
             >
               Practices
+            </button>
+          )}
+          {userEmail && (
+            <button
+              className="team-chip"
+              data-active={showRentals}
+              data-practice="true"
+              onClick={() => setShowRentals((v) => !v)}
+            >
+              Ice Rentals
             </button>
           )}
         </div>
