@@ -467,18 +467,18 @@ export default function App() {
   const visibleEvents = useMemo(
     // On-ice events are rink-wide (no team), so team filters don't apply to
     // them - everything else is filtered by the active team set as before.
-    // Practices also have their own Practices toggle on top of the team one.
+    // Practices show if either their team chip or the Practices chip is on.
     () =>
       viewerEvents.filter((ev) => {
         if (ev.kind === ENTRY_KIND.ON_ICE_EVENT) return true
         // Ice rentals aren't tied to a team - only the Ice Rentals toggle applies.
         if (ev.kind === ENTRY_KIND.ICE_RENTAL) return showRentals
         if (ev.kind === ENTRY_KIND.PRACTICE) {
-          if (!showPractices) return false
-          // Rink-wide practices (no teams, e.g. Open Hockey) always show;
-          // team practices show when any of their teams is active.
-          const teams = practiceTeams(ev)
-          return teams.length === 0 || teams.some((t) => activeTeams.has(t))
+          // Either filter shows a practice: the Practices chip (all
+          // practices, including rink-wide ones like Open Hockey), or any
+          // of the practice's own team chips being on.
+          if (showPractices) return true
+          return practiceTeams(ev).some((t) => activeTeams.has(t))
         }
         return activeTeams.has(ev.team)
       }),
