@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabaseClient'
 import CalendarView from './components/CalendarView'
 import { practiceTeams } from './practiceUtils'
+import { exportGameSchedule } from './exportSchedule'
 import EventModal from './components/EventModal'
 import RinkEventModal from './components/RinkEventModal'
 import AvailableSlotsModal from './components/AvailableSlotsModal'
@@ -49,6 +50,7 @@ export default function App() {
   const [activeTeams, setActiveTeams] = useState(new Set(TEAMS))
   const [showPractices, setShowPractices] = useState(true)
   const [showRentals, setShowRentals] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [modalState, setModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [rinkModalState, setRinkModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [slotsDropdownOpen, setSlotsDropdownOpen] = useState(false)
@@ -878,6 +880,28 @@ export default function App() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {userEmail && !loading && !loadError && (
+        <div className="export-bar">
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true)
+              try {
+                await exportGameSchedule(events)
+              } catch (err) {
+                alert(`Couldn't create the Excel file: ${err.message || err}`)
+              } finally {
+                setExporting(false)
+              }
+            }}
+          >
+            {exporting ? 'Preparing…' : 'Export game schedule'}
+          </button>
+        </div>
       )}
 
       {modalState && (

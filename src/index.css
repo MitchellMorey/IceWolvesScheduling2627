@@ -1137,3 +1137,8 @@ button {
   border-left-style: solid;
   border-left-color: #b7791f;
 }
+
+.export-bar {
+  margin: 28px 0 8px;
+  text-align: center;
+}
