@@ -26,6 +26,7 @@ import {
   clampToSeason,
   formatTime12h,
   toDateKey,
+  todayKey,
   timeToMinutes,
 } from './dateUtils'
 import iceWolvesLogo from './assets/ice-wolves-logo.jpg'
@@ -528,6 +529,7 @@ export default function App() {
 
     return teamAllocations
       .filter((alloc) => !filledKeys.has(`${alloc.date}|${alloc.team}|${alloc.time || ''}`))
+      .filter((alloc) => alloc.date >= todayKey()) // past dates aren't available anymore
       .filter((alloc) => !teamHomeGameDates.has(alloc.date))
       .filter((alloc) => !teamTournamentDates.has(alloc.date))
       .filter(
@@ -602,7 +604,9 @@ export default function App() {
         .map((ev) => ev.date)
     )
 
+    const today = todayKey()
     return weekendDates.filter((dateKey) => {
+      if (dateKey < today) return false // past weekends aren't available anymore
       if (teamGameDates.has(dateKey)) return false
       if (teamBlockedOpenDates.has(dateKey)) return false
       const coveredByTournament = teamTournaments.some(
