@@ -515,9 +515,25 @@ export default function App() {
     const tournaments = events.filter((ev) => ev.kind === ENTRY_KIND.TOURNAMENT)
     const onIceEvents = events.filter((ev) => ev.kind === ENTRY_KIND.ON_ICE_EVENT)
 
+    // A day this team is playing in a tournament isn't a day they can host
+    // either - whether it's entered as a team tournament (a date range) or
+    // as a game with the "Tournament" type (home or away) - the same way a
+    // regular home game already blocks the day.
+    const teamTournamentDates = new Set(
+      events
+        .filter((ev) => ev.kind === ENTRY_KIND.GAME && ev.team === team && ev.event_type === 'Tournament')
+        .map((ev) => ev.date)
+    )
+    const teamTournamentRanges = tournaments.filter((t) => t.team === team)
+
     return teamAllocations
       .filter((alloc) => !filledKeys.has(`${alloc.date}|${alloc.team}|${alloc.time || ''}`))
       .filter((alloc) => !teamHomeGameDates.has(alloc.date))
+      .filter((alloc) => !teamTournamentDates.has(alloc.date))
+      .filter(
+        (alloc) =>
+          !teamTournamentRanges.some((t) => alloc.date >= t.date && alloc.date <= (t.end_date || t.date))
+      )
       .filter((alloc) => {
         const coveredByTournament = tournaments.some((t) => {
           const endDate = t.end_date || t.date
