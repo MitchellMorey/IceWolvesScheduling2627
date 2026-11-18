@@ -51,6 +51,7 @@ export default function App() {
   const [activeTeams, setActiveTeams] = useState(new Set(TEAMS))
   const [showPractices, setShowPractices] = useState(true)
   const [showRentals, setShowRentals] = useState(true)
+  const [showOpenSkate, setShowOpenSkate] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [modalState, setModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
   const [rinkModalState, setRinkModalState] = useState(null) // { mode: 'add'|'edit', event?, defaultDate? }
@@ -410,7 +411,10 @@ export default function App() {
     // Ice rentals are never blocked by a scheduled game - the calendar hides
     // the rental and flags the overlap instead - so only real rink events
     // get the hard conflict check.
-    const conflicts = form.kind === ENTRY_KIND.ICE_RENTAL ? [] : findConflicts(form, existingId)
+    const conflicts =
+      form.kind === ENTRY_KIND.ICE_RENTAL || form.kind === ENTRY_KIND.OPEN_SKATE
+        ? []
+        : findConflicts(form, existingId)
     if (conflicts.length > 0) {
       const list = conflicts
         .map((c) => `${c.team} ${c.date}${c.time ? ` ${formatTime12h(c.time)}` : ''}`)
@@ -468,6 +472,8 @@ export default function App() {
         if (ev.kind === ENTRY_KIND.ON_ICE_EVENT) return true
         // Ice rentals aren't tied to a team - only the Ice Rentals toggle applies.
         if (ev.kind === ENTRY_KIND.ICE_RENTAL) return showRentals
+        // Open skate sessions are public and not tied to a team either.
+        if (ev.kind === ENTRY_KIND.OPEN_SKATE) return showOpenSkate
         if (ev.kind === ENTRY_KIND.PRACTICE) {
           // Either filter shows a practice: the Practices chip (all
           // practices, including rink-wide ones like Open Hockey), or any
@@ -477,7 +483,7 @@ export default function App() {
         }
         return activeTeams.has(ev.team)
       }),
-    [viewerEvents, activeTeams, showPractices, showRentals]
+    [viewerEvents, activeTeams, showPractices, showRentals, showOpenSkate]
   )
 
   function toggleTeam(team) {
@@ -827,6 +833,14 @@ export default function App() {
               Practices
             </button>
           )}
+          <button
+            className="team-chip"
+            data-active={showOpenSkate}
+            data-practice="true"
+            onClick={() => setShowOpenSkate((v) => !v)}
+          >
+            Open Skate
+          </button>
           {userEmail && (
             <button
               className="team-chip"
@@ -855,9 +869,10 @@ export default function App() {
           events={visibleEvents}
           allEvents={viewerEvents}
           isEditor={isEditor}
+          showConflicts={!!userEmail}
           onDayClick={(dateKey) => setModalState({ mode: 'add', kind: ENTRY_KIND.GAME, defaultDate: dateKey })}
           onEventClick={(ev) =>
-            ev.kind === ENTRY_KIND.ICE_RENTAL
+            ev.kind === ENTRY_KIND.ICE_RENTAL || ev.kind === ENTRY_KIND.OPEN_SKATE
               ? setRinkModalState({ mode: 'edit', event: ev })
               : setModalState({ mode: 'edit', kind: ev.kind || ENTRY_KIND.GAME, event: ev })
           }

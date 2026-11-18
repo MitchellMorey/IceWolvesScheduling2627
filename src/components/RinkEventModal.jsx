@@ -39,7 +39,10 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
   const [saving, setSaving] = useState(false)
 
   const isTournament = kind === ENTRY_KIND.TOURNAMENT
+  const isSkate = kind === ENTRY_KIND.OPEN_SKATE
   const isRental = kind === ENTRY_KIND.ICE_RENTAL
+  // Rentals and open skate both are a single day with a start/end time.
+  const isTimedSession = isRental || isSkate
 
   const switchKind = (nextKind) => {
     setKind(nextKind)
@@ -60,7 +63,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
       setError('Enter the renter or group name.')
       return
     }
-    if (!isTournament && !isRental && !form.title.trim()) {
+    if (!isTournament && !isTimedSession && !form.title.trim()) {
       setError('Give this on-ice event a title.')
       return
     }
@@ -72,19 +75,19 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
       setError('End date must be on or after the start date.')
       return
     }
-    if (isRental && (!form.time || !form.end_time)) {
-      setError('Start and end time are required for an ice rental.')
+    if (isTimedSession && (!form.time || !form.end_time)) {
+      setError('Start and end time are required.')
       return
     }
-    if (isRental && form.end_time <= form.time) {
+    if (isTimedSession && form.end_time <= form.time) {
       setError('End time must be after start time.')
       return
     }
-    if (!isTournament && !isRental && !form.all_day && (!form.time || !form.end_time)) {
+    if (!isTournament && !isTimedSession && !form.all_day && (!form.time || !form.end_time)) {
       setError('Start and end time are required for an on-ice event (or check "All day").')
       return
     }
-    if (!isTournament && !isRental && !form.all_day && form.end_time <= form.time) {
+    if (!isTournament && !isTimedSession && !form.all_day && form.end_time <= form.time) {
       setError('End time must be after start time.')
       return
     }
@@ -100,7 +103,21 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
       return
     }
 
-    const payload = isRental
+    const payload = isSkate
+      ? {
+          kind,
+          team: null,
+          date: form.date,
+          end_date: form.date,
+          all_day: false,
+          time: form.time,
+          end_time: form.end_time,
+          event_type: 'Open Skate',
+          location: 'home',
+          opponent: '',
+          notes: form.notes,
+        }
+      : isRental
       ? {
           kind,
           team: null,
@@ -144,7 +161,9 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
     if (!initialEvent) return
     if (
       !confirm(
-        isRental
+        isSkate
+          ? 'Remove this open skate session?'
+          : isRental
           ? 'Remove this ice rental?'
           : 'Remove this rink event? Individual ice-slot holds underneath it will reappear.'
       )
@@ -163,7 +182,13 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>
-          {isRental
+          {isSkate
+            ? readOnly
+              ? 'Open Skate'
+              : initialEvent
+              ? 'Edit Open Skate'
+              : 'Add Open Skate'
+            : isRental
             ? readOnly
               ? 'Ice Rental'
               : initialEvent
@@ -187,7 +212,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
             </button>
             <button
               type="button"
-              data-active={!isTournament && !isRental}
+              data-active={!isTournament && !isRental && !isSkate}
               onClick={() => switchKind(ENTRY_KIND.ON_ICE_EVENT)}
             >
               On-Ice Event
@@ -199,11 +224,20 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
             >
               Ice Rental
             </button>
+            <button
+              type="button"
+              data-active={isSkate}
+              onClick={() => switchKind(ENTRY_KIND.OPEN_SKATE)}
+            >
+              Open Skate
+            </button>
           </div>
         )}
 
         <p className="modal-hint">
-          {isRental
+          {isSkate
+            ? 'A public open-skate session, visible to everyone. It hides unfilled ice-slot holds and practices it overlaps, but a scheduled home game or a rink event takes priority over it - overlaps with a game are flagged (for logged-in users) instead of blocked.'
+            : isRental
             ? 'Ice rented to an outside group (logged-in users only). It hides unfilled ice-slot holds and practices it overlaps, but a scheduled home game or a rink event takes priority over it - overlaps with a game are flagged instead of blocked.'
             : isTournament
             ? "A tournament hides every team's individual ice-slot holds for the dates it covers. It won't save if a home game is already scheduled in that window - move or remove the game first."
@@ -238,7 +272,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
             </div>
           )}
 
-          {!isTournament && (
+          {!isTournament && !isSkate && (
             <div className="field">
               <label htmlFor="rink-title">{isRental ? 'Renter / Group' : 'Title'}</label>
               <input
@@ -253,7 +287,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
             </div>
           )}
 
-          {!isRental && (
+          {!isTimedSession && (
           <div className="field">
             <label>
               <input
@@ -315,7 +349,7 @@ export default function RinkEventModal({ initialEvent, defaultDate, readOnly = f
             </p>
           )}
 
-          {!isTournament && !initialEvent && (
+          {!isTournament && !isSkate && !initialEvent && (
             <p className="modal-hint">{isRental ? 'The renter name shows on the calendar chip.' : 'The title shows on the calendar chip for this event.'}</p>
           )}
 

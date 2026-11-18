@@ -15,7 +15,7 @@ const WEEKEND_WIDTH = '1.25fr'
 const WEEKDAY_NARROW = '0.8fr'
 const WEEKDAY_EXPANDED = '1.15fr'
 
-export default function CalendarView({ year, month, events, allEvents, isEditor, onDayClick, onEventClick, onGroupClick, onRinkEventClick }) {
+export default function CalendarView({ year, month, events, allEvents, isEditor, showConflicts = true, onDayClick, onEventClick, onGroupClick, onRinkEventClick }) {
   const cells = buildMonthGrid(year, month)
   const today = todayKey()
 
@@ -46,7 +46,9 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
     tournaments.filter((t) => dateKey >= t.date && dateKey <= (t.end_date || t.date))
   const onIceOn = (dateKey) => onIceEvents.filter((t) => t.date === dateKey)
   const allPractices = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.PRACTICE)
-  const allRentals = suppressionSource.filter((ev) => ev.kind === ENTRY_KIND.ICE_RENTAL)
+  // Ice rentals and open-skate sessions follow the same rules.
+  const isRentalLike = (ev) => ev.kind === ENTRY_KIND.ICE_RENTAL || ev.kind === ENTRY_KIND.OPEN_SKATE
+  const allRentals = suppressionSource.filter(isRentalLike)
 
   // Per-day practice + ice-rental precedence and game conflicts, always
   // computed from the full unfiltered list (same reason as the other
@@ -96,7 +98,12 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
   practiceConflicts.sort(
     (a, b) => a.date.localeCompare(b.date) || (a.practice.time || '').localeCompare(b.practice.time || '')
   )
-  const kindLabel = (p) => (p.kind === ENTRY_KIND.ICE_RENTAL ? 'rental' : 'practice')
+  const kindLabel = (p) =>
+    p.kind === ENTRY_KIND.ICE_RENTAL ? 'rental' : p.kind === ENTRY_KIND.OPEN_SKATE ? 'session' : 'practice'
+  const itemTitle = (p) => (p.kind === ENTRY_KIND.OPEN_SKATE ? 'Open Skate' : practiceTitle(p))
+  // Warning markers and the conflicts list are for logged-in users - public
+  // visitors can see open skate sessions but not practices or holds.
+  if (!showConflicts) practiceConflicts.length = 0
 
   const eventsByDay = events.reduce((acc, ev) => {
     // Travel blocks only affect the Available to Travel list (computed
@@ -250,7 +257,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           }
           // game id -> practices it collides with (for the warning marker)
           const gameConflicts = new Map()
-          ;[...dayPractices, ...dayRentals].forEach((p) => {
+          ;(showConflicts ? [...dayPractices, ...dayRentals] : []).forEach((p) => {
             ;(practiceInfo.get(p.id)?.conflicts || []).forEach((g) => {
               if (!gameConflicts.has(g.id)) gameConflicts.set(g.id, [])
               gameConflicts.get(g.id).push(p)
@@ -258,7 +265,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
           })
           const conflictNote = (id) =>
             (gameConflicts.get(id) || [])
-              .map((p) => `${practiceTitle(p)} ${kindLabel(p)} ${formatTime12h(p.time)}–${p.end_time ? formatTime12h(p.end_time) : '?'}`)
+              .map((p) => `${itemTitle(p)} ${kindLabel(p)} ${formatTime12h(p.time)}–${p.end_time ? formatTime12h(p.end_time) : '?'}`)
               .join('; ')
 
           const rinkEventChips = [
@@ -289,7 +296,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
             (ev) => ev.kind === ENTRY_KIND.PRACTICE && !practiceInfo.get(ev.id)?.hidden
           )
           const rentals = dayEntries.filter(
-            (ev) => ev.kind === ENTRY_KIND.ICE_RENTAL && !practiceInfo.get(ev.id)?.hidden
+            (ev) => isRentalLike(ev) && !practiceInfo.get(ev.id)?.hidden
           )
           const homeRowItems = [
             ...groupsByTime.map((group) => ({ kind: 'alloc', time: group.time, group })),
@@ -368,19 +375,25 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
                     }
                     if (item.kind === 'rental') {
                       const rn = item.rental
-                      const rnNote = (practiceInfo.get(rn.id)?.conflicts || [])
+                      const isSkate = rn.kind === ENTRY_KIND.OPEN_SKATE
+                      const rnLabel = isSkate ? 'Open Skate' : practiceTitle(rn)
+                      const rnNote = (showConflicts ? practiceInfo.get(rn.id)?.conflicts || [] : [])
                         .map((g) => `${g.team} game ${formatTime12h(g.time)}`)
                         .join('; ')
                       return (
                         <button
                           key={rn.id}
                           className="event-chip"
-                          data-kind="rental"
+                          data-kind={isSkate ? 'open-skate' : 'rental'}
                           onClick={() => onEventClick(rn)}
-                          title={`${practiceTitle(rn)} · Ice rental${rnNote ? ` — CONFLICT with ${rnNote}` : ''}`}
+                          title={`${rnLabel}${isSkate ? '' : ' · Ice rental'}${rnNote ? ` — CONFLICT with ${rnNote}` : ''}`}
                         >
-                          <strong>{rn.time ? formatTime12h(rn.time) : ''} {practiceTitle(rn)}</strong>
-                          {rn.end_time ? `Ice rental · ends ${formatTime12h(rn.end_time)}` : 'Ice rental'}
+                          <strong>{rn.time ? formatTime12h(rn.time) : ''} {rnLabel}</strong>
+                          {rn.end_time
+                            ? `${isSkate ? 'Public skate' : 'Ice rental'} · ends ${formatTime12h(rn.end_time)}`
+                            : isSkate
+                            ? 'Public skate'
+                            : 'Ice rental'}
                           {rn.notes ? ` · ${rn.notes}` : ''}
                         </button>
                       )
@@ -476,7 +489,7 @@ export default function CalendarView({ year, month, events, allEvents, isEditor,
               <li key={`${c.practice.id}-${c.game.id}`}>
                 <button type="button" onClick={() => onEventClick(c.game)}>
                   <strong>{formatDateLabel(c.date)}</strong>{' '}
-                  {practiceTitle(c.practice)} {kindLabel(c.practice)} {formatTime12h(c.practice.time)}
+                  {itemTitle(c.practice)} {kindLabel(c.practice)} {formatTime12h(c.practice.time)}
                   {c.practice.end_time ? `–${formatTime12h(c.practice.end_time)}` : ''} overlaps{' '}
                   {c.game.team} {c.game.location === 'away' ? 'away ' : ''}game {formatTime12h(c.game.time)}
                   {c.game.opponent ? ` ${c.game.location === 'away' ? '@' : 'vs'} ${c.game.opponent}` : ''}

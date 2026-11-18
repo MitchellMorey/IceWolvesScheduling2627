@@ -1142,3 +1142,17 @@ button {
   margin: 28px 0 8px;
   text-align: center;
 }
+
+.event-chip[data-kind="open-skate"] {
+  background: #e8f6f3;
+  border-left-style: solid;
+  border-left-color: #1a8f7a;
+}
+
+/* Four type buttons in the rink event form need to wrap on narrow screens. */
+.type-toggle {
+  flex-wrap: wrap;
+}
+.type-toggle button {
+  min-width: 100px;
+}
