@@ -1144,9 +1144,9 @@ button {
 }
 
 .event-chip[data-kind="open-skate"] {
-  background: #e8f6f3;
+  background: #eceff3;
   border-left-style: solid;
-  border-left-color: #1a8f7a;
+  border-left-color: #8a94a3;
 }
 
 /* Four type buttons in the rink event form need to wrap on narrow screens. */
