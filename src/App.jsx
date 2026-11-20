@@ -466,7 +466,7 @@ export default function App() {
   const visibleEvents = useMemo(
     // On-ice events are rink-wide (no team), so team filters don't apply to
     // them - everything else is filtered by the active team set as before.
-    // Practices show if either their team chip or the Practices chip is on.
+    // Practices show only if the Practices chip AND their team chip are on.
     () =>
       viewerEvents.filter((ev) => {
         if (ev.kind === ENTRY_KIND.ON_ICE_EVENT) return true
@@ -475,11 +475,13 @@ export default function App() {
         // Open skate sessions are public and not tied to a team either.
         if (ev.kind === ENTRY_KIND.OPEN_SKATE) return showOpenSkate
         if (ev.kind === ENTRY_KIND.PRACTICE) {
-          // Either filter shows a practice: the Practices chip (all
-          // practices, including rink-wide ones like Open Hockey), or any
-          // of the practice's own team chips being on.
-          if (showPractices) return true
-          return practiceTeams(ev).some((t) => activeTeams.has(t))
+          // A practice needs BOTH filters: the Practices chip must be on,
+          // and (for a team practice) one of its teams must be on too.
+          // Rink-wide practices (no team, e.g. Open Hockey) only depend on
+          // the Practices chip.
+          if (!showPractices) return false
+          const teams = practiceTeams(ev)
+          return teams.length === 0 || teams.some((t) => activeTeams.has(t))
         }
         return activeTeams.has(ev.team)
       }),
